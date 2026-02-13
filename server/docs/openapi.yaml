@@ -1,0 +1,263 @@
+openapi: 3.0.3
+info:
+  title: Sundaya Warehouse API
+  version: 1.0.0
+servers:
+  - url: http://localhost:5000
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+security:
+  - bearerAuth: []
+paths:
+  /api/auth/login:
+    post:
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username: { type: string }
+                password: { type: string }
+      responses:
+        '200': { description: OK }
+  /api/auth/change-password:
+    put:
+      summary: Change password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword, newPassword]
+              properties:
+                currentPassword: { type: string }
+                newPassword: { type: string }
+      responses:
+        '200': { description: OK }
+  /api/inventory:
+    get:
+      summary: List inventory
+      parameters:
+        - in: query
+          name: siteId
+          schema: { type: string }
+      responses:
+        '200': { description: OK }
+  /api/inventory/materials:
+    get:
+      summary: List materials
+      responses:
+        '200': { description: OK }
+  /api/inventory/alerts:
+    get:
+      summary: List alerts
+      responses:
+        '200': { description: OK }
+  /api/inventory/alerts/{id}/read:
+    patch:
+      summary: Mark alert as read
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: OK }
+  /api/inventory/alerts/{id}/resolve:
+    patch:
+      summary: Resolve alert
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: OK }
+  /api/inventory/movements:
+    get:
+      summary: List stock movements
+      parameters:
+        - in: query
+          name: materialId
+          schema: { type: integer }
+        - in: query
+          name: siteId
+          schema: { type: integer }
+      responses:
+        '200': { description: OK }
+  /api/requests:
+    get:
+      summary: List requests
+      parameters:
+        - in: query
+          name: status
+          schema: { type: string }
+        - in: query
+          name: startDate
+          schema: { type: string, format: date }
+        - in: query
+          name: endDate
+          schema: { type: string, format: date }
+      responses:
+        '200': { description: OK }
+    post:
+      summary: Create request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [siteId, items, project]
+              properties:
+                siteId: { type: integer }
+                project: { type: string }
+                description: { type: string }
+                urgency: { type: string }
+                deadline: { type: string, format: date }
+                items:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      materialId: { type: integer }
+                      quantity: { type: integer }
+      responses:
+        '201': { description: Created }
+  /api/requests/{id}/review-noc:
+    patch:
+      summary: Review by NOC
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [approved]
+              properties:
+                approved: { type: boolean }
+                reason: { type: string }
+      responses:
+        '200': { description: OK }
+  /api/requests/{id}/approve-gm:
+    patch:
+      summary: Final approval by GM
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [approved]
+              properties:
+                approved: { type: boolean }
+                reason: { type: string }
+      responses:
+        '200': { description: OK }
+  /api/requests/{id}/ship-noc:
+    patch:
+      summary: Ship request
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [trackingNumber, shippingPhoto]
+              properties:
+                trackingNumber: { type: string }
+                shippingPhoto: { type: string }
+                eta: { type: string, format: date }
+      responses:
+        '200': { description: OK }
+  /api/requests/{id}/receive-om:
+    patch:
+      summary: Receive request
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: OK }
+  /api/requests/{id}/cancel:
+    patch:
+      summary: Cancel request
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string }
+      responses:
+        '200': { description: OK }
+  /api/reports/export:
+    get:
+      summary: Export report
+      parameters:
+        - in: query
+          name: report
+          schema: { type: string, enum: [stock, mutation, request] }
+        - in: query
+          name: type
+          schema: { type: string, enum: [PDF, XLSX] }
+        - in: query
+          name: startDate
+          schema: { type: string, format: date }
+        - in: query
+          name: endDate
+          schema: { type: string, format: date }
+      responses:
+        '200': { description: OK }
+  /api/notifications:
+    get:
+      summary: List notifications
+      responses:
+        '200': { description: OK }
+  /api/notifications/unread-count:
+    get:
+      summary: Unread count
+      responses:
+        '200': { description: OK }
+  /api/notifications/{id}/read:
+    patch:
+      summary: Mark notification read
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200': { description: OK }
