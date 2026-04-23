@@ -11,6 +11,9 @@ exports.login = async (req, res) => {
     }
     const { username, password } = req.body;
 
+    
+    //console.log('Login Attempt:', { email: req.body.email, timestamp: new Date() });
+
     const user = await User.findOne({ 
       where: { username },
       include: [{ model: Site }]

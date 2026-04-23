@@ -3,7 +3,8 @@ const { sequelize, User, Site, Material, Inventory, MaterialRequest, MaterialReq
 
 const seed = async () => {
   try {
-    await sequelize.sync({ force: true });
+    // JANGAN gunakan force: true karena akan menghapus semua data yang ada
+    await sequelize.sync({ alter: true });
 
     // Sites
     const pusat = await Site.create({ name: 'Pusat', location: 'Jakarta' });
@@ -23,52 +24,66 @@ const seed = async () => {
     // Materials
     const shs = await Material.create({
       sku: 'SDY-SHS-50W',
+      itemCode: 'SHS-50W',
       name: 'Solar Home System 50W',
       category: 'Solar Kit',
+      unit: 'Unit',
       specs: '50W Panel, 12V Battery',
-      image: 'https://images.unsplash.com/photo-1508514177221-188b1cf16e9d?w=200&h=200&fit=crop'
+      image: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=200&h=200&fit=crop'
     });
     const battery = await Material.create({
       sku: 'SDY-BAT-12V',
+      itemCode: 'BAT-12V',
       name: 'Battery 12V 100Ah',
       category: 'Battery',
+      unit: 'Unit',
       specs: 'Deep Cycle Lead Acid',
-      image: 'https://images.unsplash.com/photo-1617788131756-1229b0788734?w=200&h=200&fit=crop'
+      image: 'https://images.unsplash.com/photo-1471879832106-c7ab9e0cee23?w=200&h=200&fit=crop'
     });
     const panel100 = await Material.create({
       sku: 'SDY-PNL-100W',
+      itemCode: 'PNL-100W',
       name: 'Solar Panel 100W',
       category: 'Solar Panel',
+      unit: 'Unit',
       specs: 'Monocrystalline, 100W',
-      image: 'https://images.unsplash.com/photo-1508514177221-188b1cf16e9d?w=200&h=200&fit=crop'
+      image: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=200&h=200&fit=crop'
     });
     const inverter = await Material.create({
       sku: 'SDY-INV-1000W',
+      itemCode: 'INV-1000W',
       name: 'Inverter 1000W',
       category: 'Inverter',
+      unit: 'Unit',
       specs: 'Pure Sine Wave, 12V to 220V',
-      image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=200&h=200&fit=crop'
+      image: 'https://images.unsplash.com/photo-1496307042754-b4aa456c4a2d?w=200&h=200&fit=crop'
     });
     const controller = await Material.create({
       sku: 'SDY-CTRL-20A',
+      itemCode: 'CTRL-20A',
       name: 'Charge Controller 20A',
       category: 'Controller',
+      unit: 'Unit',
       specs: 'PWM, 12V/24V Auto',
-      image: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=200&h=200&fit=crop'
+      image: 'https://images.unsplash.com/photo-1482192596544-9eb780fc7f66?w=200&h=200&fit=crop'
     });
     const lamp = await Material.create({
       sku: 'SDY-LMP-10W',
+      itemCode: 'LMP-10W',
       name: 'LED Lamp 10W',
       category: 'Lighting',
+      unit: 'Unit',
       specs: 'E27, Warm White',
-      image: 'https://images.unsplash.com/photo-1504198453319-5ce911bafcde?w=200&h=200&fit=crop'
+      image: 'https://images.unsplash.com/photo-1481277542470-605612bd2d61?w=200&h=200&fit=crop'
     });
     const cable = await Material.create({
       sku: 'SDY-CBL-10M',
+      itemCode: 'CBL-10M',
       name: 'Solar Cable 10m',
       category: 'Accessory',
+      unit: 'Roll',
       specs: '4mm2, UV Resistant',
-      image: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=200&h=200&fit=crop'
+      image: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=200&h=200&fit=crop'
     });
 
     // Inventory
@@ -113,7 +128,8 @@ const seed = async () => {
         await MaterialRequestItem.bulkCreate(items.map((item) => ({
           requestId: created.id,
           materialId: item.materialId,
-          quantity: item.quantity
+          quantity: item.quantity,
+          unit: 'Unit'
         })));
       }
     }

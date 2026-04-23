@@ -6,13 +6,21 @@ import { clsx } from 'clsx';
 const Notifications = () => {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const unreadCount = notifications.filter((item) => !item.readAt).length;
+  const emitUnreadUpdate = (count) => {
+    window.dispatchEvent(new CustomEvent('notifications_updated', {
+      detail: { unreadCount: count }
+    }));
+  };
 
   const fetchNotifications = async () => {
     try {
       const res = await axios.get('http://localhost:5000/api/notifications', {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
-      setNotifications(res.data.data);
+      const list = Array.isArray(res.data?.data) ? res.data.data : [];
+      setNotifications(list);
+      emitUnreadUpdate(list.filter((item) => !item.readAt).length);
       setLoading(false);
     } catch (err) {
       setLoading(false);
@@ -28,9 +36,33 @@ const Notifications = () => {
       await axios.patch(`http://localhost:5000/api/notifications/${id}/read`, {}, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
+      setNotifications((prev) => {
+        const next = prev.map((item) => (
+          item.id === id ? { ...item, readAt: item.readAt || new Date().toISOString() } : item
+        ));
+        emitUnreadUpdate(next.filter((item) => !item.readAt).length);
+        return next;
+      });
       fetchNotifications();
     } catch (err) {
       alert('Gagal menandai notifikasi');
+    }
+  };
+
+  const markAllRead = async () => {
+    try {
+      await axios.patch('http://localhost:5000/api/notifications/read-all', {}, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      setNotifications((prev) => {
+        const now = new Date().toISOString();
+        const next = prev.map((item) => ({ ...item, readAt: item.readAt || now }));
+        emitUnreadUpdate(0);
+        return next;
+      });
+      fetchNotifications();
+    } catch (err) {
+      alert('Gagal menandai semua notifikasi');
     }
   };
 
@@ -42,14 +74,23 @@ const Notifications = () => {
       </div>
 
       <div className="bg-white rounded-[2.5rem] border border-slate-50 shadow-sm overflow-hidden">
-        <div className="p-8 border-b border-slate-50 flex items-center justify-between bg-slate-50/30">
+        <div className="p-8 border-b border-slate-50 flex items-center justify-between gap-4 bg-slate-50/30">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center">
               <FiBell />
             </div>
             <span className="text-sm font-black uppercase tracking-widest text-slate-700">Notification Feed</span>
           </div>
-          <div className="text-xs font-bold text-slate-400">{notifications.length} items</div>
+          <div className="flex items-center gap-3">
+            <div className="text-xs font-bold text-slate-400">{notifications.length} items</div>
+            <button
+              onClick={markAllRead}
+              disabled={unreadCount === 0}
+              className="px-4 py-2 rounded-xl bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Mark Read All
+            </button>
+          </div>
         </div>
 
         {loading ? (

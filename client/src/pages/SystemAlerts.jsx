@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  FiAlertTriangle, FiBell, FiSearch, FiFilter, 
-  FiArrowRight, FiCheckCircle, FiInfo 
+  FiAlertTriangle, FiBell, FiCheckCircle, FiInfo 
 } from 'react-icons/fi';
 import axios from 'axios';
 import { clsx } from 'clsx';
@@ -13,6 +12,7 @@ const SystemAlerts = () => {
   const [thresholdForm, setThresholdForm] = useState({ minThreshold: 5, siteId: '' });
   const [sites, setSites] = useState([]);
   const [filterPriority, setFilterPriority] = useState('ALL');
+  const [actionNotes, setActionNotes] = useState({});
 
   useEffect(() => {
     fetchAlerts();
@@ -52,18 +52,6 @@ const SystemAlerts = () => {
   const handleUpdateThreshold = async (e) => {
     e.preventDefault();
     try {
-      // This endpoint needs to be handled by backend, assuming generic material update or specific threshold endpoint
-      // For now, we might need to update all materials in a site? 
-      // Or maybe the user wants to set a global threshold policy?
-      // Based on UI "Ubah Threshold", it implies a general setting or per-site.
-      // Let's assume it updates a global setting or we iterate. 
-      // Actually, inventory has minThreshold per item. 
-      // The user likely wants to mass-update or set a default.
-      // Let's assume we update a policy setting.
-      // Since backend might not have this specific "Update All Thresholds" endpoint, 
-      // I'll simulate it or just show a success for the UI interaction if backend logic isn't there yet.
-      // But better: Update the 'minThreshold' for all items in the selected site.
-      
       const token = localStorage.getItem('token');
       await axios.post('http://localhost:5000/api/inventory/update-thresholds', thresholdForm, {
         headers: { Authorization: `Bearer ${token}` }
@@ -80,34 +68,42 @@ const SystemAlerts = () => {
   const filteredAlerts = alerts.filter(alert => {
     if (filterPriority === 'ALL') return true;
     if (filterPriority === 'RESOLVED') return alert.status === 'RESOLVED';
-    return alert.priority === filterPriority;
+    if (filterPriority === 'ACTIVE') return alert.status !== 'RESOLVED';
+    return alert.priority === filterPriority && alert.status !== 'RESOLVED';
   });
 
+  const activeAlerts = alerts.filter((a) => a.status !== 'RESOLVED');
   const stats = {
-    critical: alerts.filter(a => a.priority === 'CRITICAL').length,
-    warning: alerts.filter(a => a.priority === 'WARNING').length,
+    critical: activeAlerts.filter(a => a.priority === 'CRITICAL').length,
+    warning: activeAlerts.filter(a => a.priority === 'WARNING').length,
+    active: activeAlerts.length,
     resolved: alerts.filter(a => a.status === 'RESOLVED').length
   };
+  const healthy = stats.active === 0;
 
   const handleRead = async (id) => {
     try {
-      await axios.patch(`http://localhost:5000/api/inventory/alerts/${id}/read`, {}, {
+      await axios.patch(`http://localhost:5000/api/inventory/alerts/${id}/read`, { note: actionNotes[id]?.trim() || undefined }, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
+      setActionNotes((prev) => ({ ...prev, [id]: '' }));
       fetchAlerts();
     } catch (err) {
-      alert('Gagal menandai alert');
+      alert(err.response?.data?.message || 'Gagal menandai alert');
     }
   };
 
   const handleResolve = async (id) => {
     try {
-      await axios.patch(`http://localhost:5000/api/inventory/alerts/${id}/resolve`, {}, {
+      await axios.patch(`http://localhost:5000/api/inventory/alerts/${id}/resolve`, {
+        note: actionNotes[id]?.trim() || undefined
+      }, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
+      setActionNotes((prev) => ({ ...prev, [id]: '' }));
       fetchAlerts();
     } catch (err) {
-      alert('Gagal resolve alert');
+      alert(err.response?.data?.message || 'Gagal resolve alert');
     }
   };
 
@@ -118,8 +114,11 @@ const SystemAlerts = () => {
           <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">System Alerts</h1>
           <p className="text-slate-500 mt-1 font-medium italic">Pemantauan otomatis stok kritis dan anomali sistem</p>
         </div>
-        <div className="bg-emerald-50 text-emerald-600 px-6 py-3 rounded-2xl border border-emerald-100 flex items-center gap-2 text-xs font-black uppercase tracking-widest">
-          <FiCheckCircle /> System Healthy
+        <div className={clsx(
+          "px-6 py-3 rounded-2xl border flex items-center gap-2 text-xs font-black uppercase tracking-widest",
+          healthy ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-red-50 text-red-600 border-red-100"
+        )}>
+          <FiCheckCircle /> {healthy ? 'System Healthy' : 'Need Attention'}
         </div>
       </div>
 
@@ -162,6 +161,15 @@ const SystemAlerts = () => {
                     <p className="text-xs font-bold text-slate-400">
                       Status: {alert.status}
                     </p>
+                    <p className="text-xs font-bold text-slate-400">
+                      Last Trigger: {new Date(alert.lastTriggeredAt || alert.updatedAt || alert.createdAt).toLocaleString('id-ID')}
+                    </p>
+                    <input
+                      value={actionNotes[alert.id] || ''}
+                      onChange={(e) => setActionNotes((prev) => ({ ...prev, [alert.id]: e.target.value }))}
+                      placeholder="Catatan (opsional)"
+                      className="w-full mt-2 px-4 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-600 outline-none focus:ring-2 focus:ring-sundaya-red"
+                    />
                     <div className="pt-4 flex gap-3">
                       <button
                         onClick={() => handleRead(alert.id)}
@@ -224,6 +232,16 @@ const SystemAlerts = () => {
               >
                 <span className="text-xs font-bold text-slate-400">Show All</span>
                 <span className="bg-slate-500 text-white px-3 py-1 rounded-lg text-xs font-black">{alerts.length}</span>
+              </button>
+              <button 
+                onClick={() => setFilterPriority('ACTIVE')}
+                className={clsx(
+                  "w-full flex justify-between items-center p-4 rounded-2xl border transition-all",
+                  filterPriority === 'ACTIVE' ? "bg-slate-700 border-slate-500" : "bg-white/5 border-white/5 hover:bg-white/10"
+                )}
+              >
+                <span className="text-xs font-bold text-slate-400">Active Alerts</span>
+                <span className="bg-indigo-500 text-white px-3 py-1 rounded-lg text-xs font-black">{stats.active}</span>
               </button>
             </div>
           </div>

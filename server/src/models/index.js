@@ -15,18 +15,18 @@ const Notification = require('./Notification');
 Site.hasMany(User, { foreignKey: 'siteId' });
 User.belongsTo(Site, { foreignKey: 'siteId' });
 
-Material.hasMany(Inventory, { foreignKey: 'materialId' });
+Material.hasMany(Inventory, { foreignKey: 'materialId', onDelete: 'CASCADE' });
 Inventory.belongsTo(Material, { foreignKey: 'materialId' });
 
-Site.hasMany(Inventory, { foreignKey: 'siteId' });
+Site.hasMany(Inventory, { foreignKey: 'siteId', onDelete: 'CASCADE' });
 Inventory.belongsTo(Site, { foreignKey: 'siteId' });
 
 // MaterialRequest Associations
 Site.hasMany(MaterialRequest, { foreignKey: 'siteId' });
 MaterialRequest.belongsTo(Site, { foreignKey: 'siteId' });
 
-User.hasMany(MaterialRequest, { foreignKey: 'requestedBy' });
-MaterialRequest.belongsTo(User, { foreignKey: 'requestedBy' });
+User.hasMany(MaterialRequest, { foreignKey: 'requesterId' });
+MaterialRequest.belongsTo(User, { foreignKey: 'requesterId' });
 
 // New Multi-Item Associations
 MaterialRequest.hasMany(MaterialRequestItem, { foreignKey: 'requestId', as: 'items' });
@@ -57,7 +57,7 @@ StockMovement.belongsTo(Site, { foreignKey: 'siteId' });
 User.hasMany(StockMovement, { foreignKey: 'userId' });
 StockMovement.belongsTo(User, { foreignKey: 'userId' });
 
-Material.hasMany(Alert, { foreignKey: 'materialId' });
+Material.hasMany(Alert, { foreignKey: 'materialId', onDelete: 'CASCADE' });
 Alert.belongsTo(Material, { foreignKey: 'materialId' });
 
 Site.hasMany(Alert, { foreignKey: 'siteId' });
@@ -65,6 +65,9 @@ Alert.belongsTo(Site, { foreignKey: 'siteId' });
 
 User.hasMany(Notification, { foreignKey: 'userId' });
 Notification.belongsTo(User, { foreignKey: 'userId' });
+
+Alert.hasMany(Notification, { foreignKey: 'alertId' });
+Notification.belongsTo(Alert, { foreignKey: 'alertId' });
 
 const db = {
   sequelize,

@@ -42,6 +42,17 @@ const ShippingControl = () => {
     );
   };
 
+  const filteredShipments = shipments.filter((ship) => {
+    if (!searchTerm) return true;
+    const q = searchTerm.toLowerCase();
+    return (
+      String(ship.resi || '').toLowerCase().includes(q) ||
+      String(ship.project || '').toLowerCase().includes(q) ||
+      String(ship.expedition || '').toLowerCase().includes(q) ||
+      String(ship.to || '').toLowerCase().includes(q)
+    );
+  });
+
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8">
       <div>
@@ -72,7 +83,7 @@ const ShippingControl = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-6">
-          {shipments.map((ship) => (
+          {filteredShipments.map((ship) => (
             <div key={ship.id} className="bg-white rounded-[2.5rem] border border-slate-50 shadow-sm overflow-hidden hover:shadow-xl hover:shadow-slate-100 transition-all">
               <div className="p-8 flex flex-col lg:flex-row gap-8">
                 {/* Info Utama */}

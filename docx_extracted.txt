@@ -1,0 +1,517 @@
+﻿RANCANG BANGUN SISTEM MANAJEMEN MATERIALMULTI-SITE BERBASIS WEBSITE DENGAN AUTO-ALERT STOK MENGGUNAKAN METODE EXTREME PROGRAMMING (XP) PADA PT SUNDAYA INDONESIA
+Tugas Akhir
+diajukan untuk memenuhi salah satu syarat memperoleh gelar sarjana
+pada Program Studi S1 Sistem Informasi
+Direktorat Kampus Purwokerto
+Universitas Telkom
+2211103048
+Muhammad Raka Pradana 
+Program Studi Sarjana S1 Sistem Informasi
+Direktorat Kampus Purwokerto
+Universitas Telkom
+Purwokerto
+2025
+LEMBAR ORISINALITAS
+Dengan ini saya, Muhammad Raka Pradana, menyatakan sesungguhnya bahwa Tugas Akhir saya dengan judul Rancang Bangun Sistem Manajemen MaterialMulti-siteBerbasis Website dengan Auto-Alert Stok Menggunakan Metode Extreme Programming(XP) pada PT Sundaya Indonesia beserta dengan seluruh isinya merupakan hasil karya saya sendiri, dengan tidak melakukan penjiplakan yang tidak sesuai dengan etika keilmuan yang berlaku dengan masyarakat keilmuan, serta produk dari tugas akhir ini bukan merupakan hasil dari GenerativeAI. Saya siap menanggung risiko/sanksi yang diberikan jika di kemudian hari ditemukan pelanggaran terhadap etika keilmuan dalam Laporan Tugas Akhir, atau jika ada klaim dari pihak lain terhadap keaslian karya.
+ABSTRAK
+RANCANG BANGUN SISTEM MANAJEMEN MATERIALMULTI-SITEBERBASIS WEBSITE DENGAN AUTO-ALERT STOK MENGGUNAKAN METODE EXTREME PROGRAMMING (XP) PADA PT SUNDAYA INDONESIA
+Oleh:
+Muhammad Raka Pradana
+2211103048
+Pengelolaan material pada PT Sundaya Indonesia masih dilakukan secara manual dan terpisah antara pusat dan tiga site operasional, sehingga sering terjadi keterlambatan distribusi, ketidaktepatan pencatatan, dan kurangnya visibilitas terhadap ketersediaan material. Kondisi ini menimbulkan kendala dalam pemenuhan kebutuhan operasional maupun proyek, terutama ketika site membutuhkan material dalam waktu cepat. Penelitian ini bertujuan mengembangkan sistem manajemen materialmulti-siteberbasis web yang mengintegrasikan proses permintaan material dari site dan divisioperational maintanace, pencatatan alur distribusi dari pusat ke site, serta mekanisme peringatan stok menipis agar pengelolaan material lebih akurat dan responsif. Metode pengembangan yang digunakan adalah Extreme Programming dengan pendekatan iteratif mulai dari analisis proses bisnis, perancangan model alur kerja, pembuatan prototipe, implementasi perangkat lunak, hingga pengujian. Hasil penelitian menunjukkan bahwa sistem dapat mempercepat proses permintaan material, meningkatkan akurasi pencatatan stok, serta memberikan informasi ketersediaan material secara real time kepada bagian operasional dan pengawas. Secara keseluruhan, sistem ini mampu meningkatkan efisiensi koordinasi antara pusat, site, dan divisi pemasaran.
+Kata kunci: manajemen material, multi-site, distribusi, peringatan stok, pengembangan sistem, web
+ABSTRACT
+DESIGN OF A WEBSITE-BASED MULTI-SITEMATERIALMANAGEMENTSYSTEM WITH AUTO-ALERT STOCK USING THE EXTREME PROGRAMMING (XP) METHOD AT PT SUNDAYA INDONESIA
+Oleh:
+Muhammad Raka Pradana
+2211103048
+Materialmanagement at PT Sundaya Indonesia is still carried out manually and separately between the central Warehouse and three operational sites, resulting in delayed distribution, inaccurate stock records, and limited visibility of material availability. These conditions create obstacles in supporting operational and project needs, especially when sites require material urgently. This research aims to develop a web-based multi-sitematerialmanagementsystem that integrates site and operational maintenance divisionmaterialrequests, records the distribution flow from the central Warehouse to sites, and provides a low-stock alertmechanism to improve accuracy and responsiveness. The system was developed using the Extreme Programming method through iterative stages of business process analysis, workflow modeling, prototype design, Software implementation, and testing. The results show that the system accelerates materialrequestprocessing, improves stock accuracy, and provides real-time information for operational and supervisory roles. Overall, the system enhances coordination Efficiency between the central warehouse, sites, and the Operational Maintanance division.
+Keywords:materialmanagement, multi-site, distribution, stock alert, system development, web
+KATA PENGANTAR
+Puji dan syukur penulis panjatkan ke hadirat Tuhan Yang Maha Esa atas segala rahmat dan karunia-Nya sehingga penulis dapat menyelesaikan laporan Tugas Akhir yang berjudul “Rancang Bangun Sistem Manajemen Material  Multi-site Berbasis Website dengan Auto-Alert Stok Menggunakan Metode Extreme Programming (XP) pada PT Sundaya Indonesia” dengan baik. Penyusunan Tugas Akhir ini merupakan salah satu persyaratan untuk memperoleh gelar Sarjana pada Program Studi Sarjana Sistem Informasi, Universitas Telkom Direktorat Kampus Purwokerto. Penelitian ini dilatarbelakangi oleh pentingnya pemanfaatan teknologi informasi dalam mendukung proses penerimaan peserta didik baru yang transparan, objektif, dan efisien, khususnya pada jenjang sekolah dasar negeri.
+Dalam proses penyusunan laporan Tugas Akhir ini, penulis menyadari bahwa keberhasilan penyelesaian penelitian tidak terlepas dari dukungan, bimbingan, serta bantuan dari berbagai pihak. Oleh karena itu, pada kesempatan ini penulis menyampaikan ucapan terima kasih yang sebesar-besarnya kepada:Ucapan syukur kepada Tuhan Yang Maha Esa.
+Bapak Prof. Dr. Suyanto selaku Rektor Universitas Telkom yang telah menyediakan fasilitas dan dukungan pendidikan selama penulis menempuh masa studi.
+Ibu Dr. Tenia Wahyuningrum, S.Kom., M.T. selaku Direktur Universitas Telkom Direktorat Kampus Purwokerto yang telah memberikan arahan serta menciptakan lingkungan akademik yang kondusif dalam menunjang kegiatan pembelajaran.Ucapan terimakasih kepada Ketua Program Studi.
+Ibu Khairun Nisa Meiah Ngafidin, S.Pd., M.Kom. selaku Ketua Program Studi Sarjana Sistem Informasi yang telah memberikan dukungan serta kebijakan akademik selama proses perkuliahan hingga penyusunan Tugas Akhir.Ucapan terima kasih kepada individu maupun lembaga yang memberikan bantuan, bimbingan dan dukungan yang relevan.
+Bapak Awiet Wiedanto Prasetyo, M.MSI. dan Ibu Khairun Nisa Meiah Ngafidin, S.Pd., M.Kom. selaku dosen pembimbing yang telah memberikan bimbingan, arahan, saran, serta motivasi dengan penuh kesabaran selama proses penyusunan Tugas Akhir ini.
+Ayahanda Rulianto Kurniawan dan Ibunda Cen Nilla Murthi. Terima kasih yang sedalam-dalamnya untuk Ayah dan Bunda. Terima kasih atas segala doa, dukungan moral maupun materi, serta kesabaran yang tak terhitung jumlahnya selama ini. Kalian adalah alasan terbesar saya untuk menyelesaikan tanggung jawab ini. Semoga karya sederhana ini bisa menjadi sedikit kebanggaan dan pembayar lelah bagi Ayah dan Bunda.
+Untuk Muhammad Raka Pradana. Terima kasih. Terima kasih sudah berjuang sejauh ini. Terima kasih karena telah memilih untuk bangkit di hari-hari yang berat,dan kembali berjuang meski rasanya ingin berhenti. Terima kasih telah memaafkan diri sendiri saat melakukan kesalahan dan tetap percaya bahwa garis finish itu nyata. Kamu hebat sudah sampai di titik ini.
+Liverpool FC Terima kasih telah menemani waktu istirahat saya. Meskipun performanya sedang turun dan sering membuat kecewa akhir-akhir ini, setidaknya menonton pertandingan kalian tetap menjadi hiburan dan pelarian sejenak dari penatnya tugas akhir. You’ll Never Walk Alone.
+Teman-teman Seperjuangan. Terima kasih sudah hadir dan menjadi teman diskusi yang baik. Terima kasih untuk setiap bantuan, canda tawa, dan semangat yang diberikan. Kehadiran kalian membuat masa-masa sulit dalam pengerjaan ini terasa jauh lebih ringan.
+Keluarga saya di Purbalingga terutama Om Wahyu, Tante Laras, Tante Nenny, serta Rhea dan Afiqa. Terima kasih yang setulus-tulusnya karena telah menjadi keluarga kedua bagi saya selama 4 tahun menuntut ilmu di Purwokerto. Terima kasih telah membuka pintu rumah dan hati kalian, memberikan bantuan, serta dukungan moral sejak hari pertama saya menginjakkan kaki di sini hingga sekarang. Kehangatan dan kehadiran kalian membuat saya tidak pernah merasa sendirian di perantauan.
+Purwokerto, 21 Desember 2025
+(TTD)
+Muhammad Raka Pradana
+DAFTAR ISI
+DAFTAR GAMBAR
+Gambar 2. 1 Alur Exreme Programming27
+Gambar 3. 1 Flowchart Dagram39
+Gambar 3. 2 Low Fidelity41
+DAFTAR TABEL
+Tabel 1. 1 Jadwal Penelitian9
+Tabel 2. 1 Ringkasan Penelitian Terdahulu14
+Tabel 2. 2Use Case Diagram29
+Tabel 2. 3Activity Diagram31
+Tabel 2. 4Sequence Diagram32
+Tabel 3. 1 Alat Penelitian37
+DAFTAR LAMPIRAN
+Lampiran  1. Wawancara secara Google Meet dengan salah satu stakeholder di  PT Sundaya Indonesia yaitu Bapak Rozali selaku yang mengurus bagian NOC48
+Lampiran  2. Observasi 1 ketika Magang pada bulan februari di PT Sundaya Indonesia48
+Lampiran  3. Evidensi Bersama para pegawai PT Sundaya Indonesia49
+Lampiran  4. Observasi 250
+Lampiran  5. surat permohonan pengambilan data untuk bahan penelitian Projek Akhir51
+Lampiran  6. Bukti wawancara terhadap salah satu stakeholder55
+Lampiran  7. Screenshoot Gmail untuk permohonan penelitian terhadap pihak sundaya dan juga sudah terdapat balasannya.56
+BAB I PENDAHULUAN
+Latar Belakang
+Di  era  Revolusi  Industri  4.0,  integrasi  teknologi  digital menjadi  suatu  kebutuhan  penting  dalam  setiap  aspek kehidupan,  terutama  di  sektor  industri  danmanufaktur[1].Pemerintah Indonesia melalui Peraturan Presiden Nomor 112 Tahun 2022 tentang Percepatan Pengembangan Energi Terbarukan untukPenyediaan Tenaga Listrik mendorong percepatan pembangunan pembangkit listrik berbasis energi terbarukan dengan menekankan pentingnya efisiensi operasional dan transformasi digital dalam industri energi[2].Perkembangan industri energi terbarukan menimbulkan kompleksitas dalam pengelolaan materialmulti-siteyang memerlukan sistem informasi guna mengoptimalkan resource management dan material procurement sehingga meningkatkan koordinasi dan efisiensi[3].Perkembangan ini mendorong perusahaan di sektor energi terbarukan untuk melakukan ekspansi geografis guna melayani proyek di berbagai wilayah, menimbulkan kompleksitas dalam pengelolaan material multi-siteyang memerlukan sistem informasi terintegrasi. 
+Perusahaan dengan operasi gudang tersebar di berbagai lokasi tanpa sistem terintegrasi mengalami kendala keterlambatan penyebaran informasi yang berdampak pada lambatnya pengambilan keputusan operasional[4].Sistem peringatan otomatis dengan pemantauan berbasis auto-alert dapat memberikan notifikasi dini untuk tindakan preventif sebelum terjadi kehabisan stok, sementara otomasi alur kerja permintaan material dapat mengurangi waktu koordinasi antar departemen dan meminimalkan kesalahan proses manual[5].
+PT Sundaya Indonesia menghadapi tantangan kompleks dalam mengelola material untuk operasional proyek(Pembangkit Listrik Tenaga Listrik)PLTS yang tersebar di berbagai wilayah. Bukti konkret dari masalah ini terungkap melalui observasi yang dilakukan pada bulan Februari dan Oktober dengan salah satu stakeholder kunci, yaitu Manager R&D Bapak Tri Hermanto. Hasil observasi mengidentifikasi beberapa masalah kritis dalam sistem manajemen material yang existing. Pertama, proses koordinasi antar divisi masih berjalan secara manual dan berlapis terutama di bagian NOC , OM , dan GM, mereka masih mengandalkan email dan komunikasi verbal yang tidak efisien serta rentan miskomunikasi. Kedua, tidak adanya sistem peringatan otomatis untuk stok kritis menyebabkan kondisi menipisnya material sering kali baru diketahui ketika hampir atau sudah terjadi stockout.
+Lalu terdapat masalah lain dalam Prosedur permintaan material proyek,yaitu pada saat ini tidak diatur oleh prosedur yang terstandarisasi akibat tidak adanya mekanisme tracking yang terintegrasi. Setiap unit yang memerlukan material masih mengandalkan metode manual seperti pengajuan melalui e-mail atau formulir fisik, tanpa sistem yang mampu memonitor status persetujuan maupun realisasi permintaan. Situasi ini menimbulkan inefisiensi dalam koordinasi dan menyulitkan pelacakan progres setiap pengajuan material. Lebih lanjut, proses pengambilan keputusan mengenai alokasi material antar lokasi proyek masih mengandalkan cara konvensional tanpa dukungan sistem pendukung keputusan. Dampaknya, saat muncul permintaan material dari suatu wilayah, penentuan sumber pasokan sering kali didasarkan pada data yang tidak lengkap, berpotensi menghasilkan keputusan yang tidak optimal dari aspek akurasi waktu distribusi maupun efisiensi biaya logistik.
+Dari aspek teknologi, Sistem pencatatan inventory saat ini menggunakan spreadsheet dengan file terpisah untuk setiap lokasi yang memiliki keterbatasan fundamental dalam hal integritas data, kontrol akses bersamaan, dan kemampuan pelacakan perubahan[6]. Peraturan Menteri Perindustrian RI Nomor 27 Tahun 2017 tentang Pedoman Sistem Informasi Industri menekankan pentingnya penerapan sistem informasi terintegrasi dalam industri manufaktur dan distribusi untuk meningkatkan efisiensi, transparency, dan competitiveness[7].
+Implementasi Warehouse Management System terbukti dapat mengurangi kesalahan, menghemat waktu, dan meningkatkan produktivitas operasional gudang[8].Berdasarkan analisis permasalahan tersebut, diperlukan solusi berupa Warehouse Management System berbasis website yang dirancang khusus untuk PT Sundaya Indonesia dengan karakteristik: (1) Pengelolaan persediaan di beberapa lokasi (1 gudang utama dan 2 lokasi pendukung) dengan sinkronisasi data secara langsung; (2) Kontrol akses berdasarkan peran untuk 3 jenis pengguna dengan fungsi berbeda (Admin NOC mengelola operasional penuh, Admin GM melakukan pengawasan dan persetujuan akhir, OM mengajukan permintaan material untuk proyek); (3) Sistem peringatan otomatis yang memantau batas minimum stok dan mengirim notifikasi secara langsung; (4) Alur persetujuan permintaan material yang terintegrasi dengan notifikasi otomatis di setiap tahap; (5) Dashboard dengan tampilan menyeluruh untuk pemantauan dan analisis; (6) Pengembangan dengan biaya terjangkau menggunakan teknologi gratis dan terbuka (React.js, Node.js, MySQL/PostgreSQL).
+Extreme Programming (XP) dipilih karena Keunggulan dalam keterlibatan pengguna pada setiap tahap pengembangan, sehingga sistem dapat disesuaikan secara langsung dengan kebutuhan mereka[9].Penerapan Test-Driven Development (TDD) memastikan keandalan setiap fungsi, khususnya untuk sistem kritis seperti manajemen persediaan[10]. Berbeda dengan Waterfall yang kaku atau Scrum yang membutuhkan tim besar dan proses rumit, XP lebih cocok untuk tim kecil yang membutuhkan validasi cepat dari stakeholder[11]. 
+Sistem ini bertujuan meningkatkan efisiensi operasional dengan memangkas waktu koordinasi dari hari menjadi jam, mencegah kehabisan stok melalui auto-alert, serta meningkatkan akurasi data persediaan untuk optimasi biaya logistik. Secara akademis, penelitian ini mendokumentasikan penerapan Extreme Programming pada sistem multi-lokasi dan menghasilkan kerangka manajemen gudang yang hemat biaya serta dapat diadaptasi UMKM dan perusahaan menengah di Indonesia.
+Dengan demikian,penelitian ini bertujuan untuk merancang danmembangun Sistem ManajemenMaterialMulti-siteberbasis website dengan auto-alert stok menggunakan metode Extreme Programming pada PT Sundaya Indonesia sebagai solusi komprehensif untuk mengatasi permasalahan operasional existing dan mendukung transformasi digital Warehouse management yang sustainable dan scalable.
+Rumusan Masalah
+Berdasarkan latar belakang yang telah diuraikan, rumusan masalah dalam penelitian ini adalah:
+Merancangkan dan membangun sistem manajemen materialmulti-siteberbasis website yang dapat mengintegrasikan data inventory dengan real-time synchronization, role-based access control, dan automated alert system.
+Mengimplementasikan alur request–approval terintegrasi dengan memanfaatkan mekanisme pengaturan alur status untuk mengotomatisasi proses permintaan material proyek, termasuk persetujuan bertahap dan pelacakan status di setiap tahap.
+Menerapkan metodologi Extreme Programming (XP) dalam pengembangan system.
+Tujuan Penelitian
+Tujuan yang ingin dicapai dalam penelitian ini adalah:
+Merancang dan membangun sistem manajemen materialmulti-siteberbasis website dengan arsitektur three-tier yang mendukung real-time data synchronization, role-based access control (RBAC) untuk tiga peran pengguna, dan automated alert system dengan rule-basedalgorithm untuk mendeteksi kondisi stok kritis.
+Mengimplementasikan alur request–approval yang terintegrasi dengan menggunakan mekanisme pengaturan alur status, sehingga setiap perubahan status permintaan materialmulai dari pengajuan hingga pemenuhandapat berjalan otomatis, dilengkapi notifikasi dan pencatatan jejak aktivitas.
+Menerapkan metodologi Extreme Programming (XP) dengan iterative development dan test-driven development menggunakan teknologi open-source (React.js, Node.js, MySQL/PostgreSQL) untuk menghasilkan sistem yang dapat meningkatkan efisiensi koordinasi operasional, akurasi data inventory, dan visibility real-time.
+Manfaat Penelitian
+Penelitian ini diharapkan memberikan manfaat bagi berbagai pihak sebagai berikut:
+Manfaat Praktis:
+Bagi PT Sundaya Indonesia:
+Peningkatan Efisiensi Operasional dengan membuat sistem ini dapat mengurangi waktu koordinasi manual antar departemen dan meminimalkan kesalahan komunikasi melalui alur kerja dan notifikasi otomatis.
+Pengurangan Risiko Stockout dengan membuat sistem peringatan otomatis ini memberikan pemberitahuan dini saat stok mendekati batas minimum,sehingga dapat dilakukan tindakan pencegahan sebelum terjadi kehabisan stok yang mengganggu operasional proyek.
+Peningkatan Akurasi Data dengan membuat sistem ini dengan aturan validasi dan jejak audit dapat meningkatkan keakuratan data persediaan dan mengurangi kesalahan input manual.
+Visibilitas Real-time dengan dashboard super memberikan informasi lengkap tentang kondisi persediaan di seluruh lokasi secara langsung, membantu pengambilan keputusan yang lebih cepat dan tepat.
+Transparansi Proses menggunakanworkflowapproval yang terstruktur dan tracking status permintaan memberikan transparansi kepada semua stakeholder,mengurangi pertanyaan manual dan meningkatkan tanggung jawab.
+Menciptakan costefficiency untuk perusahaan dikarenakan decisionsupport untuk alokasi materialantar lokasi yang lebih baik dapat mengurangi biaya pengiriman dan waktu tunggu.
+Scalability dengan sistem ini yang dirancang dengan arsitektur yang sangat mendukung penambahan lokasi di masa depan tanpa perlu perubahan fundamental pada core system.
+Bagi User NOC (Network Operation Center):
+Interfaceuser-friendly untuk mengelola inventory di Multiple locations
+Automated alert mengurangi beban monitoring manual
+Workflow terintegrasi mempercepat processing permintaan material
+Bagi UserGM(General Manager):
+Dashboard  dengan visualisasi data yang mudah dipahami
+One-clickapprovalmechanism untuk efisiensi decisionmaking
+Export report untuk keperluan analisis dan presentasi ke manajemen utama
+Bagi User OM (Operational Mainatanace):
+Self-service portal untuk pengajuan permintaan material proyek
+Real-time tracking status permintaan tanpa perlu inquiry manual
+History permintaan yang dapat diakses untuk refrensi rencana proyek baru
+Manfaat Akademis:
+Kontribusi Metodologi: Dokumentasi implementasi metode Extreme Programming (XP) dalam pengembangan enterprisesystem multi-sitedan multi-role yang dapat menjadi referensi untuk penelitian serupa, khususnya untuk sistem dengan kompleksitas tinggi dan requirement yang dinamis.
+Studi Kasus Real Industry: Penelitian berbasis problem actual industry memberikan insight praktis mengenai tantangan dan solusi dalam implementasi Warehouse managementsystem untuk perusahaan menengah di Indonesia.
+Framework Development: Menghasilkan framework rancangan sistem manajemen materialmulti-siteyang Cost-effective dan dapat diadaptasi untuk industri lain dengan karakteristik operasional serupa, khususnya UMKM dan perusahaan menengah yang memiliki keterbatasan budget untuk commercial WMS.
+Referensi Penelitian Lanjutan: Penelitian ini dapat menjadi baseline untuk pengembangan fitur advanced di masa depan seperti predictive analytics untuk fitur lanjutan, machine learning untuk inventory optimization, atau IoT integration untuk real-time physicaltracking.
+Batasan Masalah 
+Penelitian ini juga memiliki beberapa batasan dalam penelitiannya sebagai berikut:
+Batasan Fungsional:
+Cakupan Lokasi: Sistem dirancang untuk mengelola alur material antara main Warehouse (pusat) dan maksimal 3 site cluster (regional) yaitu daerah Papua dan Maluku untuk site yang sekarang untuk titik spesifiknya terdapat di Teluk Wondama untuk yang daerah papua dan Halsel-Bacan untuk yang daerah maluku,dan  Sistem tidak mencakup:
+Distribusi material antar-site cluster (cluster to cluster direct)
+Distribusi langsung ke end customer atau client proyek
+Tracking Pengiriman: Sistem hanya mencatat informasi pengiriman material (tanggal kirim, nomor resi, estimasi tiba, status delivery) tanpa integrasi dengan teknologi tracking fisik seperti GPS real-time tracking, RFID (Radio Frequency Identification), atau IoT sensors untuk monitoring kondisi barang dalam perjalanan.
+Batasan penelitian ini adalah sistem hanya fokus pada permintaanmaterial sekali pesan yang sangat terikat pada kebutuhan proyek. Setiap permintaan harus mencantumkan referensi proyek yang jelas, kuantitas yang spesifik, dan batas waktu pengiriman. Sistem ini tidak dirancang untuk mengelola permintaan materialoperasional harian, proses pengisian stok otomatis, atau pesanan materialyang sifatnya tetap atau jangka panjang.
+Peran Pengguna: Sistem hanya mendukung 3 peran utama dengan fungsi terbatas:
+Admin NOC: CRUD inventorymanagement, processingmaterialrequest, inter-sitetransfermanagement
+Admin GM: View-onlydashboard, finalapproval authority, reporting dan analytics
+Admin OM: Create materialrequest, view statustracking, access requesthistory
+Sistem tidak mencakup peran:
+Finance/Accounting untuk budgetapproval dan financial tracking
+Supplier management dan procurement team
+HR atau IT administrator untuk advance usermanagement
+Sistem tidak mencakup:
+Perhitungan biaya material (Costing/pricing per unit)
+Invoice generation dan billing
+Payment tracking dan reconciliation
+Budget allocation dan monitoring
+Purchase Order (PO) generation ke supplier
+Account payable/receivable
+Fokus sistem hanya pada physicalinventorymanagement dan coordination workflow.
+Jadwal Penelitian
+Tabel 1. 1 Jadwal Penelitian
+LANDASAN TEORI
+Tinjaun Pustaka
+Di era teknologi saat ini, pengembangan sistem informasi untuk manajemen material dan gudang sudah banyak dilakukan untuk meningkatkan efisiensi operasional perusahaan, khususnya dalam konteks multi-sitedan integrasi permintaan proyek. Kemudian dilakukan kajian pustaka dengan tujuan memudahkan dalam menganalisis topik-topik yang pernah dibuat untuk kemudian dapat dijadikan referensi pada penelitian ini.
+Penelitian pertama dilakukan oleh Tegar Palyus Figar, Andi Sultan Asharil Raphi, dan Nur Fajri Azhar (2023) dengan judul "Design and Build Inventory Management Information System with Personal Extreme Programming Method". Penelitian ini mengembangkan Sistem Informasi Manajemen Inventaris untuk Institut Teknologi Kalimantan menggunakan metode Personal Extreme Programming (PXP). Penelitian ini berhasil mengatasi permasalahan manajemen inventaris yang sebelumnya masih menggunakan Microsoft Excel dengan mengimplementasikan fitur-fitur seperti manajemen sarana prasarana, peminjaman, dan laporan. Hasil penelitian menunjukkan bahwa metode PXP efektif dalam pengembangan sistem dengan 36 user story yang diselesaikan dalam 6 iterasi dengan total story point 101 [12].
+Penelitian kedua,oleh Meilani dan Hendra Fitra dalam “Design of Warehouse Management Information System (Case Study: PT Total Teknologi Rekacipta)” menjelaskan bahwa proses manajemen gudang di perusahaan masih dilakukan secara manual sehingga menimbulkan human error dan kesulitan dalam pelacakan barang. Dengan menerapkan metode Waterfall dan prinsip 5S, penelitian ini menghasilkan sistem manajemen gudang yang lebih terstruktur, terdokumentasi, dan mudah digunakan untuk proses operasional harian [13].
+Penelitian ketiga, dilakukan oleh Nelsy Herman dan Nur Zahrati Janah dengan judul "Rancang Bangun Company Profile E-Life Solutions PLT Berbasis Web Sebagai Corporate Branding" menemukan bahwa kurangnya informasi tentang profil perusahaan disebabkan oleh Website yang tidak teratur, kaku, dan kurang menarik. Sehingga hal tersebut menghambat dalam memberikan informasi kepada audiens. Oleh karena itu, dilakukan perancangan ulang Website menggunakan metode Website Development Life Cycle (WLDC) dengan menerapkan CSS Framework, HTML, basis data Mysql, dan bahasa pemograman PHP. Hasilnya adalah Website company profile sebagai corporate branding yang menampilkan informasi tentang perusahaan dengan tingkat kepuasan antarmuka Website sebesar 92% [14].
+Penelitian keempat, dilakukan oleh Andi Nurkholis, Erliyan Redy Susanto, dan Suhenda Wijaya dengan judul "Penerapan Extreme Programming dalam Pengembangan Sistem Informasi Manajemen Pelayanan Publik" menyatakan bahwa proses pembuatan surat dan pengolahan data masih bersifat manual yang menyebabkan kesalahan input, reduplikasi data, dan kesulitan dalam pencarian data. Oleh karena itu, dilakukan pengembangan sistem informasi manajemen pelayanan publik dengan menerapkan metode Extreme Programming. Hasilnya, sistem informasi manajemen publik berhasil dikembangkan dan dipergunakan untuk pembuatan surat, pengaduan, dan pelayanan publik lainnya [15].
+Penelitian kelima, dilakukan oleh Yosep Sepirana, Wiyoga Baswardono, dan Rovy Elisa Nurkholis Awaludin dengan judul "Rancang Bangun Sistem Informasi Administrasi Klinik Berbasis Website Menerapkan Metode Extreme Programming" menjelaskan tentang pembangunan sistem informasi administrasi klinik yang dibangun menerapkan metode Extreme Programming. Tujuan dari pembangunan sistem ini adalah untuk memudahkan proses administrasi klinik seperti pendaftaran pasien, pembuatan laporan, dan pembayaran. Dalam proses pembangunannya, metode Extreme Programming digunakan untuk menjamin kualitas sistem yang dibangun serta meningkatkan efisiensi dalam proses pengembangan sistem. Hasil dari penelitian ini menunjukkan bahwa sistem informasi administrasi klinik berbasis Website yang dibangun dapat digunakan dengan baik dan efektif dalam meningkatkan proses administrasi klinik [16].
+Penelitian keenam dilakukan oleh Charine Devi Rukminingtyas, Ridho Pamungkas dan Andria dengan judul "Rancang Bangun Sistem Informasi Berbasis Website Lembaga Pelatihan Kewirausahaan (LPK) Ayostart dengan Metode Extreme Programming (XP)" menjelaskan tentang pembuatan sistem informasi berbasis Website untuk Lembaga Pelatihan Kewirausahaan (LPK) Ayostart menerapkan metode Extreme Programming (XP). Tujuan dari pembuatan sistem ini adalah untuk memudahkan pengolahan dan pengembangan LPK Ayostart dengan menyediakan fasilitas pendaftaran, pembayaran, dan pelaporan kegiatan. Hasil dari penelitian ini menunjukkan bahwa sistem informasi berbasis Website yang dibangun dengan metode XP mampu memenuhi kebutuhan LPK Ayostart dan dapat digunakan secara efektif dalam mengelola dan mengembangkan kegiatan LPK[17].
+Penelitian ketujuh dilakukan oleh Goldie Gunadi dengan judul "Rancang Bangun Sistem Peminjaman Laptop dengan Metode Extreme Programming Menggunakan Framework Bootstrap (Studi Kasus PT Gramedia)" menjelaskan dalam studi kasus ini, PT Gramedia menjadi perusahaan yang dijadikan objek penelitian. Tujuan dari penelitian ini adalah untuk mengembangkan sebuah sistem peninjaman laptop yang efektif dan efisien dengan menerapkan metode Extreme Programming dan framework Bootstrap. Hasil dari penelitian ini menunjukkan bahwa sistem peminjaman laptop yang telah dikembangkan mampu meningkatkan efektivitas dan efisiensi proses peminjaman laptop di PT Gramedia. Dengan menerapkan metode Extreme Programming dan framework Bootstrap, kualitas produk dapat ditingkatkan dan waktu pengembangan sistem dapat dipercepat[18].
+Penelitian kedelapan dilakukan oleh Artama dan Mariana (2022) dengan judul "Rancang Bangun Sistem Informasi Persediaan Barang Berbasis Web Menggunakan Metode FIFO di PT Garuda Surya Raya". Penelitian ini dilatarbelakangi oleh permasalahan pencatatan stok yang masih manual sehingga sering terjadi selisih antara data administrasi dengan fisik barang di lapangan. Sistem ini dikembangkan menggunakan metode Waterfall dan menerapkan metode FIFO (First In First Out) untuk pengelolaan alur barang. Hasil penelitian menunjukkan bahwa sistem mampu mempermudah proses pencatatan barang masuk, barang keluar, serta pembuatan laporan persediaan. Namun, penelitian ini merekomendasikan penambahan fitur indikator alert jumlah stok di masa depan, yang mana fitur tersebut justru menjadi komponen utama yang sudah terintegrasi dalam penelitian ini[19].
+Penelitian kesembilan oleh Prasetyo et al. (2023) dengan judul "Extreme Programming Method for Integrated Service System Website Development in Rejosari Village" mengembangkan sistem layanan terpadu berbasis website untuk desa Rejosari menggunakan metode Extreme Programming. Penelitian ini menerapkan siklus XP secara lengkap mulai dari perencanaan, desain, pengkodean, hingga pengujian. Hasil penelitian menunjukkan bahwa metode XP efektif dalam mengakomodir kebutuhan yang berubah-ubah dari pengguna dan menghasilkan sistem yang sesuai dengan kebutuhan masyarakat desa dengan tingkat kepuasan pengguna mencapai 85% [20].
+Penelitian kesepuluh oleh Santoso & Wijaya (2023) dengan judul "Penerapan Metode Extreme Programming dalam Pengembangan Aplikasi Point of Sale pada Usaha Phi Phi Thai" mengembangkan sistem point of sale untuk usaha kuliner Thai menggunakan metode Extreme Programming. Penelitian ini menerapkan seluruh tahapan XP mulai dari user stories, iteration planning, test-first development, hingga continuous integration. Hasil penelitian menunjukkan bahwa metode XP mampu menghasilkan sistem yang sesuai dengan kebutuhan bisnis dengan waktu pengembangan yang lebih efisien dan kode yang lebih maintainable [21].
+Tabel 2. 1 Ringkasan Penelitian Terdahulu
+Berdasarkan tinjauan terhadap sepuluh penelitian terdahulu di atas, dapat disimpulkan bahwa pengembangan sistem informasi manajemen inventaris dan warehouse telah banyak dilakukan untuk meningkatkan efisiensi operasional. Sebagian besar penelitian membuktikan bahwa metode Extreme Programming (XP) sangat efektif dalam menangani kebutuhan sistem yang dinamis. Namun, mayoritas penelitian tersebut masih berfokus pada pengelolaan inventaris di satu lokasi (single-site) atau sekadar administrasi pencatatan dasar. Belum banyak penelitian yang mengintegrasikan pengelolaan material multi-site dengan fitur sinkronisasi real-time dan notifikasi peringatan dini. Secara spesifik, penelitian Artama dan Mariana (2022) merekomendasikan penambahan fitur indikator alert stok yang belum sempat diimplementasikan pada sistem mereka[19]. Oleh karena itu, penelitian ini hadir untuk mengisi celah tersebut dengan mengembangkan sistem manajemen material yang tidak hanya mencatat pergerakan stok fisik (stock movement), tetapi juga mengintegrasikan permintaan proyek antar-lokasi dan fitur Auto-Alert Stok menggunakan metode Extreme Programming untuk menjawab tantangan distribusi logistik di PT Sundaya Indonesia.
+Landasan Teori
+Landasan teori berisi konsep-konsep mendasar yang digunakan sebagai pijakan dalam pembahasan penelitian. Teori pada bagian ini diambil dari literatur tepercaya, seperti buku teks standar dan publikasi ilmiah yang telah divalidasi.
+Sistem Informasi
+ informasi adalah kumpulan prosedur operasional yang terintegrasi dan didukung teknologi informasi untuk menghasilkan informasi bernilai bagi pengguna dalam organisasi[22].selain itu, sistem informasi juga dapat berdampak pada kinerja karyawan dalam organisasi.Penerapan sistem informasi yang baik dapat membantu karyawan bekerja lebih efisien dan produktif, meningkatkan kualitas pekerjaan, dan memberikan akses yang lebih cepat dan mudah ke informasi yang dibutuhkan. Sebaliknya, kegagalan dalam menerapkan sistem informasi yang tepat dapat menghambat kinerja karyawan dan bahkan mengurangi produktivitas organisasi secara keseluruhan[23].
+Dalam penelitian ini, sistem informasi diterapkan untuk mengelola material pada beberapa lokasi dengan mengintegrasikan beberapa proses penting seperti permintaan material, alur persetujuan, dan pemantauan stok. implementasi sistem informasi telah berhasil meningkatkan efektivitas pengendalian persediaan secara signifikan. Keberhasilan ini dapat dilihat dari berbagai aspek operasional yang mengalami peningkatan, terutama dalam hal integrasi data dan pemantauan real-time, yang menjadi faktor kunci dalam pengelolaan persediaan yang lebih efektif[24]. Dengan adanya integrasi ini, informasi tentang ketersediaan material dapat diakses secara langsung oleh semua pihak yang berkepentingan, sehingga keputusan operasional dapat diambil dengan lebih cepat dan tepat. Hal ini sangat penting untuk operasional perusahaan yang memiliki banyak lokasi dan membutuhkan koordinasi yang baik antar lokasi tersebut.
+2.2.2. Warehouse Management System (WMS)
+Warehouse Management System (WMS) adalah sebuah sistem teknologi berbasis database yang secara langsung mendukung operasi gudang, seperti pengelolaan inventori, penyimpanan, dan alur material untuk meningkatkan efisiensi operasional[25]. Penggunaan warehouse management system perlu disesuaikan dengan tujuan dalam mencapai kinerja operasional pada perusahaan. Penelitian ini bertujuan untuk melihat bagaimana kualitas sistem, kualitas informasi, dan kualitas pelayanan pada penerapan WMS berpengaruh terhadap kinerja operasional di perusahaan berdasarkan persepsi karyawan[26].
+Implementasi kemampuan sinkronisasi tersebut sangat bermanfaat bagi operasional perusahaan yang memiliki banyak cabang. Dengan menggunakan WMS, perusahaan dapat mengatur penyebaran barang dan penggunaan ruang gudang menjadi lebih teratur. Sistem ini memudahkan pemantauan stok yang berpindah antar-lokasi, sehingga pengiriman barang dapat dilakukan sesuai kebutuhan yang berdampak pada penghematan biaya operasional. Selain itu, fitur pelacakan langsung (real-time tracking) mempercepat proses pencarian barang fisik di gudang. Ketika sistem ini terintegrasi dengan proses permintaan barang, seluruh alur kerja dari hulu ke hilir dapat berjalan dengan lebih lancar dan efisien.
+2.2.3.Multi-site Website
+Secara teknis, website dengan arsitektur multi-sitedidefinisikan sebagai platform berbasis jaringan yang dirancang untuk memfasilitasi aktivitas operasional di berbagai cabang atau lokasi geografis berbeda melalui satu kendali sistem terpusat. Teknologi ini berfungsi sebagai solusi strategis atas kendala fragmentasi data yang kerap dialami organisasi berskala luas, di mana tantangan utamanya adalah risiko keterlambatan pertukaran informasi (information delay) antar-unit kerja. Dengan menerapkan konsep ini, seluruh unit cabang dapat mengakses dan memperbarui basis data yang sama secara real-time, sehingga integritas dan kecepatan arus informasi bagi manajemen tetap terjaga meskipun operasional terpisah oleh jarak fisik[4]. 
+Dalam konteks penelitian ini, prinsip dasar multi-sitetersebut sangat relevan karena pengelolaan material pada beberapa gudang memerlukan aliran informasi yang terkoordinasi dan konsisten antar lokasi. Sistem manajemen gudang multi-lokasi membutuhkan integrasi data real-time, alur kerja yang distandardisasi, serta mekanisme pemantauan terpusat agar setiap perubahan stok, pergerakan barang, maupun permintaan material dapat terlihat oleh seluruh pihak terkait. Tanpa konsep integrasi multi-siteini, proses distribusi material berpotensi menimbulkan ketidakakuratan data, keterlambatan pengambilan keputusan, dan kesulitan dalam sinkronisasi antar gudang.
+Role-based access control (RBAC)
+Role-based access control (RBAC) merupakan model keamanan yang membatasi akses sistem kepada pengguna yang berwenang berdasarkan peran mereka dalam organisasi. Model RBAC terdiri dari tiga komponenutama:  pengguna (users),peran (roles), dan izin (permissions).   Dalam   implementasinya,   RBAC menggunakan prinsip least privilege, di mana pengguna hanya  diberikan  akses  minimal  yang  diperlukan  untuk menjalankan tugas mereka[27].
+Dalam konteks pengembangan sistem informasi, RBAC memfasilitasi terciptanya pemisahan tugasyang jelas antara berbagai tingkatan pengguna, seperti administrator, supervisor, dan staf operasional, sehingga setiap alur kerja dapat diawasi dengan lebih baik. Prinsip inilah yang diterapkan dalam penelitian ini untuk memastikan bahwa setiap pengguna hanya dapat berinteraksi dengan fitur-fitur yang relevan dengan tanggung jawab mereka. Hak akses dibatasi secara ketat sesuai fungsi masing-masing, mulai dari kewenangan mengajukan permintaan material, melakukan validasi persetujuan, hingga hak khusus untuk memantau dan mengelola data inventaris gudang.
+Automated alert system
+Sistem peringatan otomatis atau automated alert system merupakan mekanisme pemantauan berbasis teknologi yang berfungsi untuk mendeteksi kondisi kritis pada persediaan barang secara real-time. Dalam penerapannya, sistem ini sering diintegrasikan ke dalam aplikasi yang dilengkapi fitur notifikasi otomatis untuk memberikan peringatan langsung kepada pengguna saat stok mulai menipis atau mencapai ambang batas minimum. Fitur ini menjadi sangat krusial karena membantu pengguna melakukan tindakan preventif sebelum kehabisan barang terjadi, sehingga risiko kekosongan stok (stockout) dapat dimitigasi sedini mungkin[5].
+Dalam konteks operasional gudang perusahaan, fitur ini mengubah pola kerja yang sebelumnya bergantung pada pengecekan manual menjadi pengawasan sistem yang proaktif. Peringatan yang dihasilkan tidak hanya terbatas pada informasi stok fisik, tetapi juga dapat dikonfigurasi untuk memantau status permintaan yang tertunda (pending request) atau keterlambatan pengiriman. Dengan adanya notifikasi instan tersebut, pengambilan keputusan pemenuhan material dapat dilakukan dengan lebih cepat untuk menjaga kelancaran operasional proyek dan menghindari kerugian biaya akibat ketiadaan material.
+Website
+Secara umum, website dipahami sebagai sekumpulan halaman digital yang saling terhubung yang memuat berbagai bentuk informasi, baik berupa teks, visual, maupun audio, yang disimpan secara terpusat pada server. Halaman-halaman ini dirancang agar dapat diakses secara global melalui jaringan internet menggunakan alamat unik atau URL (Uniform Resource Locator), menjadikannya media interaktif yang memungkinkan pengguna tidak hanya menerima informasi, tetapi juga mengelola data tanpa batasan ruang dan waktu[28].
+Dalam konteks pengembangan sistem informasi manajemen material, adopsi teknologi berbasis website menawarkan keunggulan strategis, terutama dalam aspek aksesibilitas dan efisiensi pemeliharaan (maintenance). Mengingat arsitekturnya yang terpusat (server-based), implementasi di lingkungan operasional yang tersebar (multi-site) menjadi jauh lebih sederhana karena tidak memerlukan instalasi perangkat lunak secara manual di setiap perangkat pengguna. Hal ini menjamin keseragaman versi sistem dan sinkronisasi data secara real-time antara kantor pusat dan unit lapangan, yang pada akhirnya memperlancar integrasi proses bisnis secara menyeluruh.
+Extreme Programming (XP)
+Metode Extreme Programming (XP)merupakan salah satu proses rekayasa perangkat lunak yang mengacu pada pendekatan berorientasi objek. Selain itu, metode ini lebih efisien, adaptif, dan fleksibel dalam proses pengembangan sistem, dan nilai inti dari extreme programming meliputi komunikasi,keberanian, kesederhanaan, umpan balik, dan kerja keras[20]. XP mengedepankan iterasi singkat, rilis cepat, umpan balik berkelanjutan, dan praktik test-driven development. Pendekatan ini cocok untuk proyek yang memiliki kebutuhan dinamis atau memerlukan penyesuaian berkelanjutan dari sisi fitur dan proses. Dalam penelitian ini, XP digunakan untuk mengembangkan sistem secara bertahap sehingga setiap fitur dapat diuji, dievaluasi, dan diperbaiki sebelum melanjutkan ke tahap berikutnya.
+Gambar 2. 1 Alur Exreme Programming
+Tahapan dalam Extreme Programming terdiri dari empat fase utama yang dilakukan secara berulang (iterative), yaitu Perencanaan, Perancangan, Pengkodean, dan Pengujian. Berikut adalah implementasi tahapan extreme programming :
+Perencanaan (Planning)
+Tahap perencanaan berfokus pada eksplorasi kebutuhan pengguna melalui penyusunan user stories yang mendeskripsikan fungsionalitas sistem dari perspektif bisnis. Pada fase ini, pengembang dan klien berkolaborasi menentukan prioritas fitur dan menyusun jadwal rilis (release planning) untuk memastikan setiap iterasi menghasilkan nilai yang relevan. Tujuannya adalah membangun kesepahaman yang kuat mengenai ruang lingkup proyek dan estimasi waktu pengerjaan sebelum pengembangan teknis dimulai.
+Perancangan (Design)
+Tahap perancangan dalam XP menekankan prinsip kesederhanaan (simple design) dengan menghindari kompleksitas arsitektur yang belum diperlukan pada saat ini. Fokus utamanya adalah menciptakan struktur sistem yang efisien dan mudah dipahami dengan bantuan visualisasi logika sistem (seperti UML), yang memungkinkan fleksibilitas tinggi terhadap perubahan kebutuhan karena desain tidak dikunci secara kaku sejak awal.
+Pengkodean (Coding)
+Tahap pengkodean merupakan proses inti implementasi perangkat lunak yang menerapkan standar pemrograman baku untuk menjaga konsistensi dan kualitas kode. Praktik utama dalam fase ini meliputi pair programming untuk kolaborasi real-time serta dan dalam penelitian ini saya berkolaborasi dengan stakeholder dari pihak sundaya,serta refactoring guna memperbaiki struktur kode tanpa mengubah fungsi utamanya agar tetap rapi dan efisien. 
+Pengujian (Testing)
+Tahap pengujian dilakukan secara intensif untuk memvalidasi kualitas perangkat lunak dan menjamin sistem bebas dari kesalahan fungsional. Metode yang diterapkan dalam tahap ini adalah Black Box Testing, yaitu teknik pengujian yang berfokus pada spesifikasi fungsional aplikasi tanpa perlu mengetahui struktur kode internal (internal code structure) atau logika pemrograman di dalamnya. Pengujian ini bertujuan untuk memastikan bahwa setiap masukan (input) yang diberikan ke dalam sistem menghasilkan keluaran (output) yang sesuai dengan kebutuhan bisnis dan skenario pengguna yang diharapkan, sehingga dapat mendeteksi kegagalan fungsi atau kesalahan antarmuka sejak dini.
+Unified Modeling Language (UML)
+Unified Modeling Language (UML)didefinisikan sebagai bahasa standar yang digunakan secara luas dalam industri perangkat lunak untuk memvisualisasikan, merancang, dan mendokumentasikan artefak dari sistem perangkat lunak, khususnya yang berbasis orientasi objek. UML menyediakan sekumpulan notasi grafis yang memungkinkan pengembang untuk membuat model visual dari sistem yang akan dibangun, mulai dari struktur statis hingga perilaku dinamisnya. Dengan menggunakan UML, kompleksitas sistem dapat diuraikan menjadi diagram-diagram yang lebih mudah dipahami, sehingga memastikan bahwa spesifikasi kebutuhan pengguna dapat diterjemahkan secara akurat ke dalam desain teknis yang terstruktur sebelum proses pengkodean dimulai [29].
+2.2.9.Use case Diagram
+Use case Diagram didefinisikan sebagai model hasil analisis perancangan sistem yang bertujuan untuk mendeskripsikan kebutuhan fungsional sistem dari perspektif pengguna (user). Diagram ini memvisualisasikan interaksi yang terjadi antara sistem dengan aktor (pengguna atau sistem lain), di mana aktor digambarkan sebagai stickman dan fungsionalitas sistem sebagai ellipse (use case). Tujuan utamanya adalah untuk memberikan gambaran yang jelas mengenai batasan sistem serta siapa saja yang berinteraksi di dalamnya, sehingga spesifikasi kebutuhan dapat dipahami dengan mudah sebelum pengembangan lebih lanjut[30]. Berikut adalah contoh gambar dari Use case Diagram:
+Tabel 2. 2Use Case Diagram
+Pada tabel2.2 ini setelah menyusun use case diagram diatas dijelaskan bahwa elemen-elemen yang terdapat di dalamnya seperti use case, aktor, asosiasi, extend, generalisasi, dan include.Masing-masing simbol pada use case diagram memiliki fungsi yang spesifik untuk menggambarkan hubungan antar komponen. Penjelasan use case diagram tersebut digambarkan dalam bentuk tabel agar lebih mudah dipahami. Dengan begitu, proses coding nantinya bisa lebih terarah. Dan sistem yang akan dibangun juga sesuai dengan alur yang sudah dirancang.
+2.2.10. Activity Diagram
+Activity Diagram merupakan diagram UML yang menggambarkan aliran fungsionalitas atau alur kerja (workflow) dari sebuah sistem, mulai dari titik awal (start point) hingga titik akhir (end point). Diagram ini digunakan untuk memodelkan proses bisnis dan urutan aktivitas, termasuk percabangan (decision) dan penggabungan (merge) aliran proses. Secara visual, diagram ini menggabungkan konsep diagram alir data (data flow) dengan diagram alur sistem (system flow), sehingga sangat efektif untuk menjelaskan logika operasional yang kompleks secara rinci[30].
+Tabel 2. 3Activity Diagram
+Pada tabel 2.3dijelaskan  activity diagram, ada berbagai simbol yang mempunyai arti tertentu, seperti simbol start, activity, decision, end point, black holeactivity, dan Miracle activity. Setiap simbol menggambarkan tahapan-tahapan dalam proses sistem yang sedang berlangsung.
+Sequence Diagram
+Sequence diagram didefinisikan sebagai diagram UML yang digunakan untuk membantu pemahaman terhadap persyaratan sistem baru, mendokumentasikan proses, serta memvisualisasikan skenario teknis saat sistem sedang dijalankan (runtime). Diagram ini secara spesifik menggambarkan interaksi antar objek di dalam dan di sekitar sistem yang berupa pertukaran pesan (message) yang diurutkan berdasarkan waktu, sehingga pengguna dapat memahami dan memprediksi bagaimana perilaku sistem tersebut akan berjalan[31].
+Tabel 2. 4Sequence Diagram
+Class Diagram
+Class Diagram didefinisikan sebagai salah satu jenis diagram UML yang menggambarkan struktur statis dari sistem dengan menunjukkan himpunan kelas-kelas, atribut, metode, serta hubungan antar objek. Diagram ini berfungsi sebagai cetak biru (blueprint) dalam perancangan basis data dan logika pemrograman berorientasi objek, memperlihatkan aturan-aturan serta tanggung jawab entitas dalam sistem yang menentukan perilaku aplikasi secara keseluruhan[30].
+React.js
+React.js adalah sebuah pustaka (library) JavaScript berbasis komponen yang dikembangkan oleh Facebook untuk membangun antarmuka pengguna (User Interface) yang interaktif dan responsif, khususnya pada aplikasi satu halaman (Single Page Application). Keunggulan utama React.js terletak pada konsep Virtual DOM yang memungkinkan pembaruan tampilan dilakukan secara efisien tanpa harus memuat ulang seluruh halaman, serta arsitektur berbasis komponen yang memudahkan penggunaan kembali kode (reusability) untuk mempercepat proses pengembangan aplikasi[32].
+2.2.14. Node.js
+Node.js adalah platform berbasis JavaScript yang dirancang dengan arsitektur non-blocking dan asinkron, memungkinkannya menjalankan kode JavaScript di sisi server (server-side). Keunggulan utama platform ini terletak pada kemampuannya menangani jumlah permintaan yang besar dengan waktu respons yang sangat cepat, menjadikannya pilihan ideal untuk pengembangan aplikasi berbasis website yang membutuhkan pertukaran data secara real-time. Selain itu, penggunaan Node.js terbukti mampu meningkatkan efisiensi manajemen tugas melalui integrasi yang mulus antar komponen aplikasi[33].
+MySQL
+MySQL adalah sistem manajemen basis data relasional (Relational Database Management System / RDBMS) bersifat open-source yang menggunakan bahasa standar SQL (Structured Query Language) untuk mengelola, mengakses, dan memanipulasi data. Dikenal karena kecepatan, keandalan, dan kemudahan penggunaannya, MySQL menjadi pilihan utama dalam pengembangan aplikasi berbasis web karena kemampuannya menangani volume data besar dengan performa tinggi serta dukungan komunitas yang luas [34].
+2.2.16. Black Box Testing
+Black Box Testing adalah metode pengujian perangkat lunak yang berfokus pada fungsionalitas sistem tanpa mengetahui struktur kode internal atau logika pemrogramannya. Pengujian ini dilakukan dengan cara memberikan sejumlah masukan (input) tertentu pada fitur aplikasi dan mengamati kesesuaian luaran (output) yang dihasilkan dengan spesifikasi kebutuhan yang telah ditetapkan. Tujuannya adalah untuk mendeteksi kesalahan pada fungsi-fungsi sistem, antarmuka, struktur data, atau kinerja inisialisasi dan terminasi program[35].
+2.2.17. Visual Studio Code
+Visual Studio Code didefinisikan sebagai sebuah teks editor ringan dan handal yang dibuat oleh Microsoft untuk sistem operasi multiplatform, yang artinya perangkat lunak ini dapat dijalankan pada berbagai lingkungan sistem operasi seperti Linux, Mac, dan Windows. Editor ini dirancang untuk mendukung pengembangan aplikasi modern dengan dukungan bawaan (built-in support) terhadap bahasa pemrograman seperti JavaScript, TypeScript, dan Node.js. Selain itu, fungsionalitasnya dapat diperluas untuk bahasa pemrograman lain melalui pemasangan plugin atau ekstensi yang tersedia di marketplace, menjadikannya alat yang fleksibel dan efisien bagi pengembang perangkat lunak[36].
+METODE PENELITIAN
+Pada pembahasan metode penelitian ini akan dipaparkan secara berurutan mengenai Subjek dan Objek Penelitian, Alat dan Bahan yang digunakan, serta Diagram Alir Penelitian yang menjadi panduan sistematis pelaksanaan tugas akhir ini.
+Subjek dan Objek Penelitian
+Subjek penelitian pada dasarnya didefinisikan sebagai entitas utama atau topik inti yang menjadi fokus pengembangan dan pembahasan dalam sebuah studi ilmiah. Mengacu pada definisi tersebut, subjek utama dalam penelitian ini adalah perancangan sistem manajemen material multi-siteberbasis website yang mengintegrasikan fitur notifikasi stok otomatis (auto-alert). Sistem ini diposisikan sebagai solusi strategis untuk mengatasi kompleksitas pengelolaan inventaris yang tersebar secara geografis, dengan titik berat pada sinkronisasi data persediaan secara real-time dan digitalisasi alur validasi permintaan guna mendeteksi batas stok kritis melalui algoritma otomatis.
+Sementara itu, objek penelitian diartikan sebagai sasaran spesifik, fenomena, atau lokasi tempat subjek penelitian diterapkan untuk memberikan solusi nyata terhadap masalah yang dihadapi. Dalam studi ini, objek penelitian difokuskan pada analisis proses bisnis logistik di PT Sundaya Indonesia, khususnya yang mencakup rantai distribusi material dari Gudang Pusat ke lokasi operasional cabang (site) di wilayah terpencil seperti Papua dan Maluku.Pemilihan objek ini didasari oleh tantangan operasional dalam koordinasi lintas lokasi, dengan lingkup pengamatan meliputi evaluasi prosedur pengajuan material, mekanisme pemantauan akurasi stok antar-gudang, serta kecepatan respons manajemen dalam pengambilan keputusan pengadaan (restocking).
+Alat dan Bahan Penelitian
+Alat Penelitian
+Alat penelitian mencakup spesifikasi perangkat keras (hardware) dan perangkat lunak (Software) yang digunakan penulis untuk mendukung seluruh tahapan perancangan, pengkodean, hingga pengujian sistem. Rincian spesifikasi alat yang digunakan disajikan pada Tabel 3.1 berikut:
+Tabel3. 1 Alat Penelitian
+Bahan Penelitian
+Bahan penelitian adalah data yang digunakan sebagai dasar analisis dan pengujian. Data tersebut terdiri dari dua jenis:
+Data Primer:Diperoleh langsung melalui observasi lapangan dan wawancara mendalam dengan stakeholder (Bapak Tri Hermanto & Bapak Gozali) untuk memetakan alur kerja (prosedur) operasional yang berjalan saat ini serta kendala di lapangan..
+Data Sekunder:Bersumber dari studi literatur (jurnal penelitian terdahulu mengenai WMS & metode XP), jurnal referensi, serta dokumentasi teknis dari teknologi yang digunakan(dokumentasi resmi React.js & Node.js).
+Diagram Alir Penelitian
+Diagram alir penelitian menggambarkan alur kegiatan penelitian yang dilakukan secara sistematis mulai dari identifikasi masalah, studi literatur, hingga penarikan kesimpulan. Diagram ini mengadopsi siklus pengembangan Extreme Programming (XP).
+Gambar 3. 1Flowchart Dagram
+Berikut adalah penjelasan rinci dari setiap tahapan dalam diagram alir di atas:
+3.3.1.Pengumpulan Data
+Tahapan pengumpulan data dilakukan untuk mendapatkan informasi yang akurat sebagai dasar penyusunan kebutuhan sistem (User Requirement). Proses ini melibatkan pengambilan data primer melalui metode observasi langsung di lapangan pada saat magang dan wawancara dengan pihak terkait guna memahami alur kerja yang berjalan.
+3.3.2. Identifikasi Masalah
+Tahap ini merupakan langkah awal penelitian di mana penulis melakukan analisis mendalam terhadap kendala yang dihadapi oleh PT Sundaya Indonesia. Fokus utama pada tahap ini adalah mengidentifikasi akar permasalahan terkait keterlambatan distribusi material dan ketidakakuratan data stok antar-lokasi yang selama ini menghambat operasional perusahaan.
+3.3.3.Planning
+Dalam metode Extreme Programming, tahap perencanaan dimulai dengan identifikasi kebutuhan bisnis melalui penggalian informasi dari stakeholder kunci di PT Sundaya Indonesia, seperti Manajer R&D dan tim operasional. Aktivitas utama pada tahap ini meliputi pembuatan User Story yang mendeskripsikan fitur-fitur esensial, seperti mekanisme permintaan material oleh divisi OM , alur persetujuan oleh Admin GM, dan pemantauan stok oleh Admin NOC. Kebutuhan-kebutuhan tersebut kemudian diprioritaskan ke dalam rencana untuk menentukan urutan pengerjaan fitur pada setiap iterasinya.
+3.3.4. Design
+Tahap perancangan dalam XP mengutamakan prinsip kesederhanaan (Simple Design) agar sistem mudah dikembangkan dan dipelihara. Penulis merancang arsitektur sistem berbasis website yang mendukung sinkronisasi data multi-sitetanpa kompleksitas yang berlebihan. Pemodelan sistem dilakukan menggunakan UML (Unified Modeling Language) untuk memvisualisasikan alur data, serta merancang struktur database yang akan menampung data inventaris. Selain itu, pada tahap ini juga dirancang algoritma untuk fitur automated alert system guna memastikan logika peringatan stok kritis dapat berjalan dengan akurat sebelum proses penulisan kode dimulai.
+Gambar 3. 2 Low Fidelity
+3.3.5. Coding
+Tahap ini merupakan proses translasi desain menjadi baris kode program menggunakan teknologi yang telah ditentukan, yaitu React.js untuk antarmuka pengguna dan Node.js untuk sisi server. Dalam penerapan metode XP, penulis mengaplikasikan praktik Refactoring, yaitu teknik menyusun ulang kode agar lebih rapi, efisien, dan mudah dipahami tanpa mengubah fungsi utamanya. Hal ini dilakukan secara disiplin untuk menjaga kualitas kode sistem agar tetap maintainable dan fleksibel terhadap penambahan fitur di masa mendatang.
+3.3.6. Testing
+Tahap pengujian dilakukan untuk memverifikasi bahwa seluruh fungsionalitas sistem telah berjalan sesuai dengan spesifikasi kebutuhan tanpa mempedulikan struktur internal kode program. Pada penelitian ini, metode yang digunakan adalah Black Box Testing. Metode ini berfokus pada pengujian fungsional dengan cara memberikan sejumlah masukan (input) pada fitur aplikasi dan mengevaluasi kesesuaian luaran (output) yang dihasilkan dengan hasil yang diharapkan. Pendekatan ini dipilih untuk memastikan bahwa logika bisnis sistem, seperti alur persetujuan permintaan material dan akurasi notifikasi automated alert system, dapat berjalan dengan benar dari sudut pandang pengguna akhir di PT Sundaya Indonesia.
+3.3.7. Analisis Hasil
+Setelah sistem selesai dibangun dan diuji, dilakukan tahap analisis hasil untuk mengevaluasi kinerja sistem secara keseluruhan. Analisis ini bertujuan untuk memastikan apakah sistem yang dibangun telah berhasil menjawab rumusan masalah, khususnya dalam aspek peningkatan efisiensi operasional dan akurasi data stok.
+3.3.8. Penulisan Laporan
+Tahap akhir dari rangkaian penelitian ini adalah penulisan laporan tugas akhir. Seluruh proses, mulai dari identifikasi masalah hingga hasil pengujian, didokumentasikan secara sistematis sebagai bentuk pertanggungjawaban ilmiah atas penelitian yang telah dilakukan.
+HASIL DAN PEMBAHASAN
+4.1 ITERASI SATU
+4.1.1 Perencanaan (Planning)
+Tahap perencanaan pada Iterasi Pertama dimulai dengan identifikasi kebutuhan sistem melalui hasil survei pra-penelitian, observasi lapangan, dan wawancara mendalam dengan stakeholder utama di PT Sundaya Indonesia. Berdasarkan hasil analisis tersebut, sistem SMMS (Sistem Manajemen Material Sundaya) pada iterasi pertama dirancang dengan tiga aktor utama, yaitu OM (Operational Maintenance), NOC (Network Operations Center), dan GM (General Manager). Sistem ini mencakup tiga site operasional, yaitu Site Pusat, Site Papua, dan Site Maluku. Masing-masing site memiliki akun OM sendiri yang bertugas mengelola material di site-nya. Tidak terdapat fitur registrasi mandiri karena seluruh akun dibuat dan diberikan langsung oleh admin Pusat. Pada iterasi pertama ini, sistem dirancang untuk mengimplementasikan lima belas kebutuhan fungsional yang mencakup alur inti manajemen material dari pengajuan permintaan, tinjauan teknis NOC, persetujuan GM, pengiriman, hingga fitur auto-alert stok kritis yang aktif secara otomatis tanpa memerlukan permintaan manual dari OM.
+User Stories Iterasi Satu
+Berikut adalah User Stories yang menjadi dasar pengembangan sistem pada Iterasi Satu. User Stories disusun berdasarkan kebutuhan masing-masing aktor (OM, NOC, GM) dalam menjalankan proses manajemen material multi-site.
+Tabel 4. 1 User Stories Iterasi Satu
+Tabel 4.1 User Stories Iterasi Satu merupakan tahap awal pengembangan sistem yang melibatkan pemahaman mendalam terhadap kebutuhan aktivitas masing-masing pengguna (OM, NOC, dan GM) di PT Sundaya Indonesia. User stories ini diperoleh melalui proses wawancara dan observasi langsung di lapangan, yang kemudian menjadi acuan dalam mendefinisikan fitur-fitur esensial sistem pada iterasi pertama.
+4.1.1.2 Analisis Kebutuhan Sistem Iterasi Satu
+Analisis kebutuhan sistem pada penelitian ini berfokus pada kebutuhan fungsional sistem. Kebutuhan fungsional adalah semua fungsionalitas yang harus dimiliki sistem, yang berasal dari User Stories ketiga aktor (OM, NOC, dan GM). Seluruh kebutuhan fungsional yang teridentifikasi ditunjukkan dalam Tabel 4.3, dengan mengikuti aturan penamaan yang dijelaskan pada Tabel 4.2 di bawah ini.
+Tabel 4. 2 Atribut Penamaan Kebutuhan Sistem
+Tabel 4. 3 Kebutuhan Fungsional Sistem Iterasi Satu
+Berdasarkan Tabel 4.3, pada iterasi satu terdapat lima belas kebutuhan fungsional (SMMS-F-01 hingga SMMS-F-15) yang mencakup seluruh alur bisnis inti sistem manajemen material multi-site. Kebutuhan tersebut mencakup autentikasi berbasis role, alur Material Request (OM → NOC → GM → NOC Shipping → OM Receiving), pengelolaan stok, fitur Used Materials, dan mekanisme auto-alert stok kritis yang bekerja secara otomatis ketika stok turun di bawah 5 unit.
+4.1.1.3 Pemodelan Kebutuhan Sistem Iterasi Satu
+Setiap use case scenario dimodelkan dari Use Case Diagram yang menggambarkan relasi antara tiga aktor utama (OM, NOC, GM) dengan seluruh fitur sistem. Skenario ini mendokumentasikan elemen kunci seperti precondition (kondisi awal), main flow (alur utama), alternative flow (alur alternatif), dan postcondition (kondisi akhir) dari setiap interaksi.
+4.1.1.3.1 Use Case Diagram Iterasi Satu
+[Use Case Diagram Iterasi Satu — Menampilkan relasi 3 aktor (OM, NOC, GM) dengan 15 use case]
+Gambar 4. 1 Use Case Diagram Iterasi Satu
+Gambar 4.1 Use Case Diagram Iterasi Satu menampilkan relasi antara tiga aktor utama sistem (OM, NOC, GM) dengan seluruh use case yang ada. OM memiliki akses ke Material Request, Used Materials, Konfirmasi Penerimaan, dan Stock View. NOC berperan sebagai penghubung teknis yang memiliki akses ke NOC Control, Stock Master, Shipping Control, dan pengelolaan alur request. GM memiliki akses ke Executive Monitor dan persetujuan Material Request.
+4.1.1.4 Use Case Scenario
+Berikut adalah use case scenario untuk setiap kebutuhan fungsional utama pada Iterasi Satu:
+Tabel 4. 4 Use Case Scenario Login Akun
+Tabel 4. 5 Use Case Scenario Material Request oleh OM
+Tabel 4. 6 Use Case Scenario Tinjauan NOC (NOC Technical Review)
+Tabel 4. 7 Use Case Scenario Persetujuan GM
+Tabel 4. 8 Use Case Scenario Shipping Control (Pengiriman Material)
+Tabel 4. 9 Use Case Scenario Konfirmasi Penerimaan Material
+Tabel 4. 10 Use Case Scenario Monitoring Stok (Stock Master)
+Tabel 4. 11 Use Case Scenario Auto-Alert Stok Kritis
+Tabel 4. 12 Use Case Scenario Executive Dashboard
+Tabel 4. 13 Use Case Scenario Pencatatan Pemakaian Material (Used Materials)
+Tabel 4. 14 Use Case Scenario Logout
+4.1.2 Perancangan (Design)
+Tahap perancangan pada Iterasi Satu dilakukan setelah proses analisis kebutuhan selesai. Perancangan meliputi pembuatan Activity Diagram untuk setiap alur proses, Class Diagram untuk model objek sistem, desain skema database, dan wireframe antarmuka.
+4.1.2.1 Activity Diagram
+Activity diagram merupakan representasi visual dari aliran aktivitas di dalam sistem. Berikut adalah activity diagram untuk fitur-fitur utama Iterasi Satu.
+4.1.2.1.1 Activity Diagram Login
+[Activity Diagram Login]
+Gambar 4.2 Activity Diagram Login
+Diagram ini menggambarkan alur proses login. Pengguna membuka aplikasi, memasukkan username dan password yang diberikan oleh Pusat. Sistem memvalidasi kredensial dan mengarahkan ke dashboard sesuai role (OM → Site Overview, NOC → NOC Control, GM → Executive Monitor). Jika validasi gagal, sistem menampilkan pesan error.
+4.1.2.1.2 Activity Diagram Material Request oleh OM
+[Activity Diagram Material Request oleh OM]
+Gambar 4.3 Activity Diagram Material Request oleh OM
+Diagram ini menggambarkan alur pengajuan Material Request. OM membuka halaman Material Requests, mengisi form permintaan material, dan menekan Submit. Sistem menyimpan permintaan dengan status "Pending NOC Review" dan secara otomatis mengirimkan notifikasi ke NOC.
+4.1.2.1.3 Activity Diagram NOC Technical Review
+[Activity Diagram NOC Technical Review]
+Gambar 4.4 Activity Diagram NOC Technical Review
+Diagram ini menggambarkan alur tinjauan teknis oleh NOC. NOC menerima notifikasi, membuka Material Request, melakukan tinjauan teknis, menambahkan catatan, lalu meneruskan ke GM. Sistem memperbarui status menjadi "Pending GM Approval".
+4.1.2.1.4 Activity Diagram Persetujuan GM
+[Activity Diagram Persetujuan GM]
+Gambar 4.5 Activity Diagram Persetujuan GM
+Diagram ini menggambarkan alur persetujuan oleh GM. GM menerima notifikasi, membuka Material Request beserta catatan teknis NOC, kemudian memilih Approve atau Reject (dengan alasan). Sistem memperbarui status dan mengirimkan notifikasi kepada NOC.
+4.1.2.1.5 Activity Diagram Shipping Control
+[Activity Diagram Shipping Control]
+Gambar 4.6 Activity Diagram Shipping Control
+Diagram ini menggambarkan alur pengiriman material oleh NOC setelah permintaan disetujui GM. NOC mengisi detail pengiriman (resi, estimasi tiba), mengkonfirmasi pengiriman, dan sistem memperbarui status menjadi "Shipped" serta memberitahu OM.
+4.1.2.1.6 Activity Diagram Konfirmasi Penerimaan
+[Activity Diagram Konfirmasi Penerimaan]
+Gambar 4.7 Activity Diagram Konfirmasi Penerimaan
+Diagram ini menggambarkan alur konfirmasi penerimaan oleh OM. OM menerima notifikasi material "Shipped", membuka detail request, mengkonfirmasi penerimaan dengan mengunggah bukti, dan sistem memperbarui status menjadi "Fulfilled" serta menambah stok site.
+4.1.2.1.7 Activity Diagram Used Materials
+[Activity Diagram Used Materials]
+Gambar 4.8 Activity Diagram Used Materials
+Diagram ini menggambarkan alur pencatatan pemakaian material oleh OM. OM membuka halaman Used Materials, mengisi form pemakaian (material, jumlah, proyek), dan sistem mengurangi stok material di site yang bersangkutan.
+4.1.2.1.8 Activity Diagram Auto-Alert Stok Kritis
+[Activity Diagram Auto-Alert Stok Kritis]
+Gambar 4.9 Activity Diagram Auto-Alert Stok Kritis
+Diagram ini menggambarkan alur auto-alert. Sistem secara periodik memantau level stok semua material di semua site. Ketika stok ≤ 5 unit, sistem secara otomatis membuat alert dan mengirimkan notifikasi ke NOC tanpa memerlukan tindakan manual dari OM.
+4.1.2.1.9 Activity Diagram Logout
+[Activity Diagram Logout]
+Gambar 4.10 Activity Diagram Logout
+Diagram ini menggambarkan alur logout. Pengguna menekan tombol "Logout System" di sidebar, sistem mengakhiri sesi, dan mengarahkan kembali ke halaman Login.
+4.1.2.2 Class Diagram
+[Class Diagram — Relasi antar kelas: Users, MaterialRequest, Material, Stock, Distribution, Notification, Site, UsedMaterial]
+Gambar 4.11 Class Diagram Iterasi Satu
+Gambar 4.11 Class Diagram menggambarkan relasi antar kelas objek utama dalam sistem SMMS. Kelas Users memiliki atribut role yang menentukan hak akses (OM, NOC, GM) dan terhubung ke Site. MaterialRequest terhubung ke Users (sebagai requester) dan Material, serta memiliki relasi ke Distribution untuk pencatatan pengiriman. Stock merupakan join table yang menghubungkan Material dan Site untuk merepresentasikan stok per-site. Notification digunakan untuk menyimpan riwayat pemberitahuan sistem.
+4.1.2.3 Perancangan Database
+Perancangan database sistem menggunakan model relasional dengan tabel users sebagai pusat autentikasi dan pengelolaan role. Setiap pengguna memiliki role (OM/NOC/GM) dan terhubung ke site tertentu. Material requests menghubungkan pemohon (OM), material yang diminta, dan status persetujuan. Tabel stocks merepresentasikan stok material per-site secara real-time dan menjadi referensi utama mekanisme auto-alert. Tabel distributions mencatat seluruh riwayat pengiriman dari Pusat ke site.
+[Relational Model Data — ERD: users, material_requests, materials, stocks, distributions, sites, notifications, used_materials]
+Gambar 4.12 Relational Model Data
+4.1.2.4 Perancangan Antarmuka (Wireframe)
+Pada tahap perancangan antarmuka sistem iterasi satu, dilakukan pembuatan wireframe untuk halaman-halaman utama aplikasi dengan pendekatan low-fidelity. Wireframe dirancang sesuai dengan kebutuhan masing-masing aktor dan alur proses bisnis yang telah didefinisikan.
+[Wireframe Halaman Login]
+Gambar 4.13 Wireframe Halaman Login
+Menampilkan form login dengan field Username dan Password, tombol "Masuk ke Sistem", dan identitas Sundaya Indonesia.
+[Wireframe Halaman Site Overview (OM)]
+Gambar 4.14 Wireframe Halaman Site Overview (OM)
+Menampilkan dashboard OM dengan kartu ringkasan Total Requests, In Progress, Completed, dan tabel Recent Movements yang menampilkan riwayat permintaan material.
+[Wireframe Halaman Material Requests]
+Gambar 4.15 Wireframe Halaman Material Requests
+Menampilkan daftar Material Request lengkap dengan kode REQ-ID, status, detail material, dan alur birokrasi.
+[Wireframe Halaman NOC Control]
+Gambar 4.16 Wireframe Halaman NOC Control
+Menampilkan Executive Dashboard NOC dengan grafik Capacity vs Stock per Site, Global Inbound/Outbound Flow, dan Alert Sistem Kritis.
+[Wireframe Halaman Executive Monitor (GM)]
+Gambar 4.17 Wireframe Halaman Executive Monitor (GM)
+Menampilkan Executive Monitor GM yang serupa dengan NOC Control, namun dilengkapi konteks pengambilan keputusan strategis.
+[Wireframe Halaman Stock Master]
+Gambar 4.18 Wireframe Halaman Stock Master
+Menampilkan daftar material dengan informasi stok di setiap site (Pusat, Papua, Maluku) secara terpadu.
+[Wireframe Halaman Shipping Control]
+Gambar 4.19 Wireframe Halaman Shipping Control
+Menampilkan antarmuka NOC untuk memproses pengiriman material, mengisi nomor resi, dan estimasi tiba.
+4.1.3 Implementasi (Coding)
+Tahap implementasi merupakan realisasi dari seluruh perancangan yang telah dibuat. Pada tahap ini, Activity Diagram, Class Diagram, dan wireframe diterjemahkan menjadi kode program yang fungsional menggunakan React.js untuk antarmuka dan Node.js (Express) untuk backend, dengan MySQL sebagai database. Proses pengembangan mengikuti prinsip Extreme Programming (XP) dengan pendekatan iteratif dan refactoring secara berkala.
+4.1.3.1 Implementasi Database
+Implementasi database dilakukan menggunakan MySQL. Struktur tabel diwujudkan dengan perintah DDL (Data Definition Language) dengan memperhatikan integritas relasional antar tabel melalui penggunaan primary key dan foreign key.
+4.1.3.1.1 Implementasi Tabel Users
+Tabel 4. Implementasi Tabel Users
+CREATE TABLE users (  id INT AUTO_INCREMENT PRIMARY KEY,  username VARCHAR(100) NOT NULL UNIQUE,  password VARCHAR(255) NOT NULL,  role ENUM('om','noc','gm') NOT NULL,  site_id INT,  name VARCHAR(255),  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,  FOREIGN KEY (site_id) REFERENCES sites(id));
+Tabel users menyimpan data seluruh pengguna sistem. Kolom role menentukan hak akses (OM, NOC, atau GM). Tidak ada fitur registrasi mandiri; akun dibuat oleh admin Pusat dan diberikan langsung kepada pengguna.
+4.1.3.1.2 Implementasi Tabel Sites
+Tabel 4. Implementasi Tabel Sites
+CREATE TABLE sites (  id INT AUTO_INCREMENT PRIMARY KEY,  name VARCHAR(100) NOT NULL,  location TEXT,  region VARCHAR(100));
+Tabel sites menyimpan informasi tiga site operasional: Pusat, Papua, dan Maluku. Tabel ini menjadi referensi untuk memisahkan stok dan permintaan material berdasarkan lokasi.
+4.1.3.1.3 Implementasi Tabel Materials
+Tabel 4. Implementasi Tabel Materials
+CREATE TABLE materials (  id INT AUTO_INCREMENT PRIMARY KEY,  name VARCHAR(255) NOT NULL,  unit VARCHAR(50) NOT NULL,  category VARCHAR(100),  minimum_stock INT DEFAULT 5,  description TEXT);
+Tabel materials menyimpan data master material. Kolom minimum_stock (default 5) adalah batas kritis yang digunakan oleh mekanisme auto-alert untuk mengirimkan notifikasi otomatis ke NOC.
+4.1.3.1.4 Implementasi Tabel Material Requests
+Tabel 4. Implementasi Tabel Material Requests
+CREATE TABLE material_requests (  id INT AUTO_INCREMENT PRIMARY KEY,  req_code VARCHAR(20) NOT NULL,  requester_id INT NOT NULL,  material_id INT NOT NULL,  quantity INT NOT NULL,  project VARCHAR(255),  status ENUM('pending_noc','pending_gm','approved_gm','rejected','shipped','fulfilled') DEFAULT 'pending_noc',  noc_notes TEXT,  gm_notes TEXT,  site_id INT NOT NULL,  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,  FOREIGN KEY (requester_id) REFERENCES users(id),  FOREIGN KEY (material_id) REFERENCES materials(id),  FOREIGN KEY (site_id) REFERENCES sites(id));
+Tabel material_requests merupakan inti dari sistem yang mencatat seluruh alur permintaan material. Status mengikuti alur birokrasi 5-step: OM Request → NOC Technical Review → GM Final Approval → NOC Shipping → OM Receiving.
+4.1.3.1.5 Implementasi Tabel Stocks
+Tabel 4. Implementasi Tabel Stocks
+CREATE TABLE stocks (  id INT AUTO_INCREMENT PRIMARY KEY,  material_id INT NOT NULL,  site_id INT NOT NULL,  quantity INT DEFAULT 0,  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,  FOREIGN KEY (material_id) REFERENCES materials(id),  FOREIGN KEY (site_id) REFERENCES sites(id),  UNIQUE KEY uniq_material_site (material_id, site_id));
+Tabel stocks menyimpan jumlah stok setiap material di setiap site secara real-time. Kolom ini dimonitor secara otomatis oleh sistem untuk memicu auto-alert ketika quantity ≤ minimum_stock di tabel materials.
+4.1.3.1.6 Implementasi Tabel Distributions
+Tabel 4. Implementasi Tabel Distributions
+CREATE TABLE distributions (  id INT AUTO_INCREMENT PRIMARY KEY,  request_id INT NOT NULL,  shipped_by INT NOT NULL,  receipt_number VARCHAR(100),  shipped_date DATE,  estimated_arrival DATE,  received_date DATE,  notes TEXT,  FOREIGN KEY (request_id) REFERENCES material_requests(id),  FOREIGN KEY (shipped_by) REFERENCES users(id));
+Tabel distributions mencatat riwayat pengiriman material dari Gudang Pusat ke site. Kolom receipt_number menyimpan nomor resi pengiriman, dan estimated_arrival menyimpan estimasi tiba yang ditampilkan kepada OM.
+4.1.3.1.7 Implementasi Tabel Notifications
+Tabel 4. Implementasi Tabel Notifications
+CREATE TABLE notifications (  id INT AUTO_INCREMENT PRIMARY KEY,  user_id INT NOT NULL,  title VARCHAR(255) NOT NULL,  message TEXT NOT NULL,  type ENUM('alert','request','approval','shipment','info') DEFAULT 'info',  is_read BOOLEAN DEFAULT FALSE,  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,  FOREIGN KEY (user_id) REFERENCES users(id));
+Tabel notifications menyimpan semua notifikasi yang diterima pengguna. Digunakan oleh sistem auto-alert untuk mengirimkan notifikasi ke NOC serta oleh fitur birokrasi untuk memberitahu GM dan NOC tentang status permintaan.
+4.1.3.2 Implementasi Halaman Login
+Halaman Login merupakan pintu masuk satu-satunya ke dalam sistem SMMS. Tidak terdapat fitur registrasi mandiri karena seluruh akun dibuat dan diberikan oleh admin Pusat kepada pengguna yang berwenang.
+Gambar 4.27 Halaman Login
+Gambar 4.27 Halaman Login menampilkan tampilan antarmuka login sistem SMMS. Halaman ini menampilkan logo Sundaya, judul "Warehouse System", field Username dan Password, serta tombol "Masuk ke Sistem". Sistem tidak menyediakan fitur registrasi mandiri karena akun diberikan langsung oleh Pusat. Terdapat tiga akun dengan role berbeda: gm_admin (GM), noc (NOC), dan om (OM di masing-masing site).
+4.1.3.3 Implementasi Halaman Site Overview (OM)
+Halaman Site Overview merupakan dashboard utama yang ditampilkan setelah OM berhasil login. Halaman ini memberikan ringkasan aktivitas logistik di site yang bersangkutan.
+Gambar 4.28 Halaman Site Overview (OM)
+Gambar 4.28 menampilkan Halaman Site Overview dari perspektif akun OM. Dashboard ini menampilkan tiga kartu statistik: Total Requests (13), In Progress (2), dan Completed (3). Tabel Recent Movements menampilkan riwayat permintaan material dengan kolom Request ID, Material Item, Project, Quantity, Status, dan Time. Badge status menggunakan warna yang membedakan antara "FULFILLED" (hijau) dan "APPROVED BY GM" (oranye). Sidebar navigasi menampilkan menu: MAIN DASHBOARD (Site Overview), LOGISTICS & STOCK (Stock Master, Material Requests, Used Materials), dan ADMINISTRATION (Notifications, Settings).
+4.1.3.4 Implementasi Halaman NOC Control
+Halaman NOC Control merupakan dashboard utama yang ditampilkan setelah NOC berhasil login. Dashboard ini memberikan visibilitas penuh terhadap kondisi operasional multi-site secara real-time.
+Gambar 4.29 Halaman NOC Control
+Gambar 4.29 menampilkan Halaman NOC Control (Executive Dashboard) dari perspektif akun NOC. Dashboard menampilkan empat kartu ringkasan: Total Sites (3), Total Stock Items (TBD, +12% MoM), Critical Needs (2), dan Weekly Turnover (+12%). Grafik "Capacity vs Stock per Site" menampilkan perbandingan kapasitas dan stok aktual di tiga site (Pusat, Papua, Maluku). Grafik "Global Inbound/Outbound Flow" menampilkan tren aktivitas distribusi 7 hari terakhir. Bagian bawah menampilkan "Alert Sistem Kritis" yang membutuhkan tindakan segera. Sidebar NOC memiliki menu tambahan Shipping Control dan System Alerts (326 notifikasi belum dibaca).
+Gambar 4.37 Halaman NOC Control (Updated)
+Gambar 4.37 menampilkan Halaman NOC Control yang telah diperbarui. Dashboard kini menampilkan card ringkasan dengan indikator tren (+12% MoM untuk Total Stock Items, +12% Weekly Turnover), grafik "Capacity vs Stock per Site" dengan visual bar chart yang lebih jelas membandingkan kapasitas dan stok aktual di Pusat, Papua, dan Maluku, serta grafik "Global Inbound/Outbound Flow" dengan line chart dua warna (hijau untuk inbound, merah untuk outbound). Panel "Alert Sistem Kritis" di bagian bawah menampilkan item yang membutuhkan tindakan dengan label "MEMBUTUHKAN TINDAKAN". Panel "Insight Efisiensi" menampilkan rekomendasi operasional berbasis data, serta indikator "Lead Time Rata-rata: 4.2 Hari".
+4.2.3.3 Implementasi Halaman Material Requests (Updated)
+Halaman Material Requests diperbarui dengan layout yang lebih terstruktur dan visualisasi alur birokrasi yang lebih jelas.
+Gambar 4.38 Halaman Material Requests (Updated)
+Gambar 4.38 menampilkan Halaman Material Requests yang telah diperbarui. Setiap permintaan kini ditampilkan dalam format card yang komprehensif, menampilkan kode REQ-ID yang menonjol, badge status berwarna (SELESAI hijau, KRITIS merah, TERLAMBAT oranye), informasi lokasi site tujuan, detail material dengan jumlah unit, nama proyek, deskripsi/catatan, serta informasi pengiriman (nomor resi, estimasi tiba, konfirmasi penerimaan). Panel kanan menampilkan visualisasi "Alur Birokrasi" 5-step yang memberikan panduan alur proses secara visual kepada seluruh pengguna.
+4.2.4 Pengujian (Testing)
+4.2.4.1 User Acceptance Testing Iterasi Dua
+4.2.4.2 Hasil Pengujian UAT Iterasi Dua
+Tabel 4. 34 Hasil UAT Iterasi Dua
+4.2.4.3 Analisis Hasil Pengujian UAT
+Berdasarkan Tabel 4.34, hasil UAT Iterasi Dua menunjukkan peningkatan signifikan dibandingkan Iterasi Satu. Rata-rata keseluruhan mencapai 4.70 dari skala 5, atau 94.0% — sudah melampaui ambang kelayakan 80%. Seluruh aspek perbaikan UI/UX mendapat skor tinggi: tampilan login (5.0), kesan user-friendly keseluruhan (5.0), visualisasi alur birokrasi (4.8), dan grafik Executive Dashboard (4.8). Hasil ini menunjukkan bahwa perbaikan antarmuka yang dilakukan pada Iterasi Dua telah berhasil memenuhi ekspektasi klien dan pengguna. Namun, melalui diskusi lanjutan dengan klien, teridentifikasi dua kebutuhan baru yang belum tersedia dalam sistem: notifikasi yang lebih informatif untuk GM dan NOC, serta fitur Return Barang Rusak dari site Papua dan Maluku. Kebutuhan ini menjadi dasar perencanaan Iterasi Tiga.
+4.2.4.4 Black Box Testing
+Tabel 4. 35 Hasil Pengujian Black Box Testing Iterasi Dua
+4.2.4.5 Analisis Hasil Pengujian Black Box Testing
+Seluruh 5 skenario Black Box Testing Iterasi Dua menunjukkan hasil "Berhasil". Perbaikan tampilan pada halaman Login (branding Sundaya), sidebar navigasi (pengelompokan menu), Executive Dashboard (grafik interaktif), layout Material Requests (badge status berwarna dan visualisasi birokrasi) semuanya terimplementasi dengan benar dan konsisten di seluruh halaman.
+4.3 ITERASI TIGA
+4.3.1 Perencanaan (Planning)
+Iterasi Tiga dilaksanakan berdasarkan permintaan tambahan dari klien (PT Sundaya Indonesia) yang disampaikan setelah evaluasi Iterasi Dua. Klien mengidentifikasi tiga kebutuhan baru yang belum terpenuhi: (1) Notifikasi yang lebih informatif dan aktif untuk GM dan NOC agar mereka tidak melewatkan tindakan penting, (2) Fitur Return Barang Rusak khusus untuk site Papua dan Maluku yang memungkinkan pengembalian material tidak layak pakai ke Pusat, serta (3) Fitur Laporan komprehensif yang memungkinkan GM melakukan evaluasi distribusi, penggunaan material, dan riwayat return. Selain itu, fitur Audit Logs juga dikembangkan untuk kebutuhan investigasi dan kepatuhan operasional.
+4.3.1.1 User Stories Iterasi Tiga
+Tabel 4. 36 User Stories Iterasi Tiga
+4.3.1.2 Pemodelan Kebutuhan Sistem Iterasi Tiga
+Tabel 4. 37 Kebutuhan Fungsional Sistem Iterasi Tiga
+Tabel 4.37 menunjukkan enam kebutuhan fungsional baru pada Iterasi Tiga (SMMS-F-21 hingga SMMS-F-26). Kebutuhan ini mencakup sistem notifikasi real-time untuk GM dan NOC, fitur Return Barang Rusak dengan alur verifikasi NOC, halaman Laporan dengan fitur export PDF/Excel, dan Audit Logs untuk keperluan investigasi.
+4.3.1.3 Use Case Scenario Iterasi Tiga
+Tabel 4. 26 Use Case Scenario Notifikasi GM & NOC
+Tabel 4. 27 Use Case Scenario Pengajuan Return Barang Rusak
+Tabel 4. 28 Use Case Scenario Verifikasi Return Barang Rusak oleh NOC
+Tabel 4. 29 Use Case Scenario Laporan Distribusi & Operasional
+4.3.2 Perancangan (Design)
+Tahap desain Iterasi Tiga mencakup perancangan tiga fitur baru: sistem notifikasi real-time, alur Return Barang Rusak, dan halaman Laporan. Activity diagram, wireframe, dan skema database baru dirancang untuk mendukung implementasi fitur-fitur tersebut.
+4.3.2.1 Activity Diagram Iterasi Tiga
+4.3.2.1 Activity Diagram Notifikasi GM & NOC
+[Activity Diagram Notifikasi GM & NOC]
+Gambar 4.39 Activity Diagram Notifikasi GM & NOC
+Sistem memantau perubahan status Material Request secara real-time. Ketika OM mensubmit request, sistem otomatis mengirim notifikasi ke NOC. Setelah NOC meneruskan ke GM, notifikasi dikirim ke GM. Setelah GM approve/reject, notifikasi dikirim ke NOC dan OM. Badge counter notifikasi di sidebar diperbarui secara real-time.
+4.3.2.2 Activity Diagram Return Barang Rusak
+[Activity Diagram Return Barang Rusak]
+Gambar 4.40 Activity Diagram Return Barang Rusak
+OM membuka fitur Return Barang Rusak, mengisi form (material, jumlah, deskripsi kerusakan, foto bukti), dan mensubmit. Sistem menyimpan dengan status "Pending NOC Verification". NOC menerima notifikasi, memeriksa detail dan foto, mengkonfirmasi status material (rusak total/dapat diperbaiki), dan memproses return. Stok di site berkurang secara otomatis.
+4.3.2.3 Activity Diagram Laporan
+[Activity Diagram Laporan]
+Gambar 4.41 Activity Diagram Laporan
+GM membuka halaman Laporan, memilih jenis laporan (Distribusi/Penggunaan/Return), mengatur filter (rentang tanggal, site). Sistem mengambil data dari database dan menampilkan dalam format tabel dan grafik. GM dapat mengekspor laporan dalam format PDF atau Excel dengan satu klik.
+4.3.2.2 Perancangan Database Iterasi Tiga
+Iterasi Tiga menambahkan dua tabel baru pada database: tabel returns untuk mencatat pengajuan return barang rusak, dan tabel audit_logs untuk mencatat seluruh aktivitas penting dalam sistem.
+Tabel 4. Implementasi Tabel Returns
+CREATE TABLE returns (  id INT AUTO_INCREMENT PRIMARY KEY,  return_code VARCHAR(20) NOT NULL,  requester_id INT NOT NULL,  material_id INT NOT NULL,  site_id INT NOT NULL,  quantity INT NOT NULL,  damage_description TEXT NOT NULL,  evidence_photo VARCHAR(500),  status ENUM('pending_noc','verified','rejected') DEFAULT 'pending_noc',  noc_notes TEXT,  processed_by INT,  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,  FOREIGN KEY (requester_id) REFERENCES users(id),  FOREIGN KEY (material_id) REFERENCES materials(id),  FOREIGN KEY (site_id) REFERENCES sites(id));
+Tabel returns mencatat seluruh pengajuan return barang rusak dari site Papua dan Maluku. Kolom evidence_photo menyimpan path foto bukti kerusakan yang diunggah oleh OM. Status return mengikuti alur: OM Submit → NOC Verification → Processed/Rejected.
+Tabel 4. Implementasi Tabel Audit Logs
+CREATE TABLE audit_logs (  id INT AUTO_INCREMENT PRIMARY KEY,  user_id INT NOT NULL,  action VARCHAR(255) NOT NULL,  entity_type VARCHAR(100),  entity_id INT,  old_value TEXT,  new_value TEXT,  ip_address VARCHAR(50),  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,  FOREIGN KEY (user_id) REFERENCES users(id));
+Tabel audit_logs mencatat seluruh aktivitas penting dalam sistem secara otomatis, termasuk login, perubahan stok, persetujuan/penolakan request, pengiriman, dan proses return. Tabel ini dapat diakses oleh NOC untuk keperluan investigasi anomali dan audit kepatuhan.
+4.3.3 Implementasi (Coding)
+Tahap implementasi Iterasi Tiga menambahkan tiga fitur baru ke dalam sistem SMMS yang telah berjalan: sistem notifikasi real-time, fitur Return Barang Rusak, dan halaman Laporan. Implementasi dilakukan tanpa mengubah fungsionalitas yang sudah ada pada Iterasi Satu dan Dua.
+4.3.3.1 Implementasi Halaman Notifications & System Alerts
+[Screenshot Implementasi Halaman Notifications & System Alerts]
+Gambar 4.42 Implementasi Halaman Notifications & System Alerts
+Halaman Notifications menampilkan seluruh notifikasi yang diterima pengguna dengan badge counter di sidebar yang diperbarui secara real-time. Notifikasi mencakup: Material Request baru (untuk NOC), keputusan GM (untuk NOC dan OM), status pengiriman (untuk OM), dan System Alerts untuk stok kritis (untuk NOC dan GM). Badge counter pada sidebar menu Notifications (234) dan System Alerts (234) terlihat pada gambar halaman GM, menunjukkan sistem notifikasi telah berfungsi aktif.
+4.3.3.2 Implementasi Fitur Return Barang Rusak
+[Screenshot Implementasi Fitur Return Barang Rusak]
+Gambar 4.43 Implementasi Fitur Return Barang Rusak
+Fitur Return Barang Rusak menyediakan form khusus yang dapat diakses oleh OM di site Papua dan Maluku. Form mencakup: pemilihan material yang rusak, jumlah unit yang dikembalikan, deskripsi kerusakan, dan unggahan foto bukti kerusakan. Setelah disubmit, NOC menerima notifikasi dan dapat mengakses panel verifikasi untuk memeriksa detail dan foto, mengkonfirmasi status material, serta memproses pengembalian ke Gudang Pusat.
+4.3.3.3 Implementasi Halaman Laporan
+[Screenshot Implementasi Halaman Laporan]
+Gambar 4.44 Implementasi Halaman Laporan
+Halaman Laporan menyediakan laporan komprehensif yang dapat diakses oleh GM. Terdapat tiga jenis laporan: (1) Laporan Distribusi Material — menampilkan riwayat pengiriman material per periode dan per site, (2) Laporan Penggunaan Material — menampilkan pemakaian material di setiap site beserta proyek terkait, dan (3) Laporan Return Barang — menampilkan riwayat pengembalian barang rusak. Setiap laporan dapat diekspor dalam format PDF (tombol Export PDF) atau Excel (tombol Download Excel) yang tersedia di header halaman.
+4.3.3.4 Implementasi Halaman Audit Logs
+[Screenshot Implementasi Halaman Audit Logs]
+Gambar 4.45 Implementasi Halaman Audit Logs
+Halaman Audit Logs menampilkan catatan kronologis seluruh aktivitas penting dalam sistem, termasuk login pengguna, perubahan status Material Request, persetujuan GM, proses pengiriman NOC, konfirmasi penerimaan OM, perubahan stok, dan proses return. Audit Logs dapat difilter berdasarkan jenis aktivitas, pengguna, dan rentang waktu. Fitur ini dapat diakses oleh NOC untuk keperluan investigasi anomali dan audit operasional.
+4.3.4 Pengujian (Testing)
+4.3.4.1 User Acceptance Testing Iterasi Tiga
+4.3.4.2 Hasil Pengujian UAT Iterasi Tiga
+Tabel 4. 38 Hasil UAT Iterasi Tiga
+4.3.4.3 Analisis Hasil Pengujian UAT
+Berdasarkan Tabel 4.38, hasil UAT Iterasi Tiga menunjukkan rata-rata keseluruhan sebesar 4.72 dari skala 5, atau 94.4%. Seluruh fitur baru mendapat penilaian sangat tinggi. Notifikasi untuk GM (5.0), badge counter notifikasi (5.0), akurasi pembaruan stok setelah return (5.0), dan kepuasan keseluruhan sistem (5.0) mendapat skor sempurna. Hasil ini menunjukkan bahwa seluruh fitur yang diminta klien pada Iterasi Tiga telah berhasil diimplementasikan dan diterima dengan sangat baik oleh pengguna. Sistem SMMS secara keseluruhan dinyatakan memenuhi seluruh kebutuhan operasional PT Sundaya Indonesia.
+4.3.4.4 Black Box Testing
+Tabel 4. 39 Hasil Pengujian Black Box Testing Iterasi Tiga
+4.3.4.5 Analisis Hasil Pengujian Black Box Testing
+Seluruh 10 skenario Black Box Testing Iterasi Tiga menunjukkan hasil "Berhasil". Sistem notifikasi real-time untuk GM dan NOC bekerja dengan tepat sesuai trigger yang ditentukan. Fitur Return Barang Rusak dengan validasi foto wajib, alur verifikasi NOC, dan pembaruan stok otomatis berjalan dengan benar. Halaman Laporan menampilkan data akurat dan fitur export PDF/Excel berfungsi. Audit Logs berhasil mencatat seluruh aktivitas sistem secara komprehensif. Dengan tingkat keberhasilan 100% pada seluruh tiga iterasi, sistem SMMS telah berhasil mengimplementasikan seluruh kebutuhan fungsional yang direncanakan dan siap digunakan oleh PT Sundaya Indonesia.
+DAFTAR PUSTAKA
+[1]D. Dendra, “Penerapan Teknologi Digital Pada Rantai Pasok Multinasional Olahraga Penerapan Teknologi Digital Pada Rantai Pasok Di Era Industri 4.0: Studi Kasus Pada Perusahaan Multinasional Olahraga,” J. poltekap, pp. 14–20, 2024.
+[2]P. Pemerintah, “Peraturan Presiden Republik Indonesia Nomor 112 Tahun 2022 Tentang Percepatan Pengembangan Energi Terbarukan Untuk Penyediaan Tenaga Listrik,” no. 135413, 2022.
+[3]H. Chen, “Analysis of Construction Industry Information Management to Improve Project Management,” J. Logist. Serv. Sci., vol. 10, no. 3, 2023, doi: 10.33168/JLISS.2023.0319.
+[4]H. Dudycz, “Problems and Challenges Related to Advanced Data Analysis in Multi-Site Enterprises,” Vietnam J. Comput. Sci., vol. 9, no. 1, pp. 1–17, 2022, doi: 10.1142/S2196888822500063.
+[5]W. Albert, G. Karamoy, and R. A. Wibowo, “Pengembangan Aplikasi Mobile untuk Monitoring Stok dan Peringatan Stok Menipis Bagi UMKM,” JUTEKOBID(Jurnal Pengemb. Teknol., vol. 1, no. 1, pp. 79–93, 2025.
+[6]N. Hasanah and H. Hasbi, “Optimalisasi Efektivitas Penggunaan Aplikasi Spreadshet dan Sistem Informasi Manajemen dalam Proses Pengauditan Laporan Keuangan,” J. Artif. Intell. Digit. Business(RIGGS), vol. 4, no. 2, pp. 5303–5307, 2025.
+[7]P. Pengembangan, “Peraturan Menteri Perindustrian Republik Indonesia NOMOR 27 /M-IND/PER/7 /2017,” 2017.
+[8]R. P. Jafandi, “Pengembangan Warehouse Management System Menggunakan Metodologi Sdlc Prototype ( Studi Kasus Pt Century Batteries Indonesia ),” JATI (Jurnal Mhs. Tek. Inform., vol. 8, no. 4, pp. 6047–6054, 2024.
+[9]A. fachurozi, “Implementasi Extreme Programming pada Pembuatan Website Sistem Informasi E-Accountant PT Naga Emas Internasional,” Remik Ris. dan E-Jurnal Manaj. Inform. Komput., vol. 9, no. 1, pp. 73–87, 2025.
+[10]M. Rizki, “Terhadap Testability Pada Kode Program Studi Kasus : Aplikasi Sedonor Analisis Dampak Test-Driven Development Terhadap Testability Pada Kode Program Studi Kasus : Aplikasi Sedonor,” Universitis Islam Indonesia, 2025.
+[11]B. U. Sasmito, “Penerapan Metodologi Extreme Programming Studi Kasus Pengembangan Maintenance Digital System (Mds) Di Pt Jkl,” J. Astratech, vol. 16, no. 2023, pp. 73–78, 2025.
+[12]T. P. Fiqar, A. Sultan, A. Raphi, N. F. Azhar, and S. Informatika, “Design and Build Inventory Management Information System with Personal Extreme Programming Method Rancang Bangun Sistem Informasi Manjemen Inventaris dengan Metode Personal Extreme Programming,” J. Geuthee Eng. Energy, vol. 2, no. 1, pp. 18–30, 2023, doi: 10.52626/joge.v.
+[13]M. S. H. Al Baihaqi, A. P. Kharisma, and N. Santoso, “Pengembangan Aplikasi Sistem Informasi Manajemen Gudang Berbasis Web Menggunakan Metodologi Agile (Studi Kasus: CV. Jaya Laksa Lestari),” J. Pengemb. Teknol. Inf. dan Ilmu Komput., vol. 2548, p. 964X, 2024.
+[14]N. Herman and N. Z. Janah, “Rancang Bangun Company Profile E-Life Solutions Plt Berbasis Web Sebagai Corporate Branding,” J. Appl. Multimed. Netw., vol. 4, no. 2, 2020.
+[15]A. Nurkholis, E. R. Susanto, and S. Wijaya, “Penerapan Extreme Programming dalam Pengembangan Sistem Informasi Manajemen Pelayanan Publik,” J. Sains Komput. Inform., vol. 5, pp. 124–134, 2021.
+[16]Y. Septiana, W. Baswardono, and R. E. N. Awaludin, “Rancang Bangun Sistem Informasi Administrasi Klinik Berbasis Website Menggunakan Metode Extreme Programming,” J. Algoritm., vol. 19, no. 2 SE-Artikel, pp. 578–589, Nov. 2022, doi: 10.33364/algoritma/v.19-2.1151.
+[17]C. D. Rukminingtyas and R. Pamungkas, “Rancang Bangun Sistem Informasi Berbasis Website Lembaga Pelatihan Kewirausahaan ( LPK ) Ayostart dengan Metode Extreme Programming ( XP ),” J. Ilm. Ilmu dan Ilmu Teknol. Website, vol. 7, no. September, pp. 43–51, 2022.
+[18]G. Gunadi, “Rancang Bangun Sistem Peminjaman Laptop dengan Metode Extreme Programming Menggunakan Framework Bootstrap,” J. Ilmu Sist. Inf., vol. 12, no. 1, pp. 74–86, 2021.
+[19]K. A. Artama and N. Mariana, “Rancang Bangun Sistem Informasi Persediaan Barang Berbasis Web Menggunakan Metode FIFO di PT Garuda Surya Raya,” J. Ilm. Komput. Graf., vol. 15, no. 1, pp. 185–190, 2022.
+[20]E. Supriyati and M. A. Gustalika, “Extreme Programming Method for Integrated Service System Website Development in Rejosari Village,” J. Ris. Inform., vol. 5, no. 3, 2023.
+[21]S. Anggara, “Penerapan Metode Extreme Programming dalam Pengembangan Aplikasi Point of Sale pada Usaha Phi Phi Thai,” J. Publ. Sist. Inf. dan Telekomun., vol. 3, 2025.
+[22]N. Jamila and T. Devy, “Penerapan Sistem Informasi Manajemen Untuk Meningkatkan Efisiensi Operasional Di PT Sianok Indah Holiday Cabang Bukkittinggi,” J. Penelit. Ilmu-Ilmu Sos., vol. 02, no. June, pp. 350–355, 2025.
+[23]A. Happy, “Information System-Based Supply Chain Management Strategy to Improve Company Operational Performance,” J. Minfo Polgan Vol., vol. 13, 2024.
+[24]R. Seftyananta, “Analisis Peran Sistem Informasi Dalam Meningkatkan Efektivitas Pengendalian Persediaan Barang Dagang Pada,” JASIKA(Jurnal Sist. Inf. Akuntasi), vol. 04, no. 02, pp. 74–82, 2024.
+[25]W. Larutama, “Journal of Logistics and Supply Chain Implementation of Warehouse Management System Planning in Finished Goods Warehouse,” J. Logist. Supply Chain, vol. 02, no. October, pp. 81–90, 2022.
+[26]T. Y. Sihaloho, “Pengaruh Penerapan Warehousing Management System terhadap Kinerja Operasional Pergudangan Perusahaan Logistik XYZ,” J. IPB MPi, vol. 18, no. 2, pp. 101–112, 2023.
+[27]E. R. Susanto et al., “Analisis Implementasi Sistem Keamanan Basis Data Berbasis Role-Based Access Control ( RBAC ) pada Aplikasi Enterprise Resource Planning,” SATESI (Jurnal Sains Teknol. Dan Sist. Informasi), vol. 5, no. 1, pp. 105–116, 2025, doi: 10.54259/satesi.v5i1.3997.
+[28]D. F. Kuncoro, U. Juniarti, J. Syahputra, R. B. B. Sumantri, and R. Suryani, “Rancang Bangun Sistem Pengaduan Masyarakat Berbasis Web Dengan Metode Waterfall,” J. Sist. Inf. dan Teknol. Perad., vol. 3, no. 2, pp. 14–19, 2022.
+[29]S. Narulita, A. Nugroho, and M. Z. Abdillah, “Diagram Unified Modelling Language ( UML ) untuk Perancangan Sistem Informasi Manajemen Penelitian dan Pengabdian Masyarakat ( SIMLITABMAS ) Universitas Nasional Karangturi Semarang , Indonesia ( deskripsi ) dan perancangan sistem , khususnya pada pemrogr,” J. Publ. Sist. Inf. dan Telekomun., no. 3, pp. 244–256, 2024.
+[30]S. W. Ramdany, “Penerapan UML Class Diagram dalam Perancangan Sistem Informasi Perpustakaan Berbasis Web,” J. Ind. Eng. Syst., vol. 5, no. 1.
+[31]R. Rohmanto, “Perbandingan Efektivitas Sistem Pembelajaran Luring dan Daring Menggunakan Metode Use case dan Sequence Diagram,” INTERNAL(Information Syst. Journal), vol. 5, no. 1, pp. 53–62, 2022.
+[32]E. Naresvari, “Penerapan JavaScript React pada perancangan front-end website UMKM Jemari Ragil Elsie,” J. Penerapan Teknol. Inf. dan Komun., vol. 04, no. 52, pp. 16–32, 2025.
+[33]A. Putra, “Efektivitas Penggunaan Node JS Dalam Pembuatan Rest API Untuk Aplikasi Katastrofa,” J. Fak. Sains dan Teknol., vol. 2, no. 1, pp. 995–1008, 2025.
+[34]R. A. Aziz, “Perancangan Sistem Adminisatrasi Penjualan pada PT SurMoRin dengan Menggunakan PHP dan MYSQL,” J. Minfo Polgan, vol. 13, pp. 1641–1650, 2024.
+[35]A. Samdono, “Berbasis Website Menggunakan Metode Equivalence Partitioning ( Studi Kasus : Cv . Algani Karya Mandiri ),” JATI(Jurnal Mhs. Tek. Inform., vol. 8, no. 1, pp. 880–885, 2024.
+[36]K. S. Ningsih, “Aplikasi Buku Tamu Menggunakan Fitur Kamera Dan Ajax Berbasis Website Pada Kantor Dispora Kota Medan,” SITek J. Sains, Inform. dan Tekonologi, 2022.
+LAMPIRAN
+Lampiran  1. Wawancara secara Google Meet dengan salah satu stakeholder di  PT Sundaya Indonesia yaitu Bapak Rozali selaku yang mengurus bagian NOC
+Lampiran  2. Observasi 1 ketika Magang pada bulan februari di PT Sundaya Indonesia
+Lampiran  3. Evidensi Bersama para pegawai PT Sundaya Indonesia
+Lampiran  4. Observasi 2
+Lampiran  5. surat permohonan pengambilan data untuk bahan penelitian Projek Akhir
+Lampiran  6. Bukti wawancara terhadap salah satu stakeholder
+Lampiran  7. Screenshoot Gmail untuk permohonan penelitian terhadap pihak sundaya dan juga sudah terdapat balasannya.

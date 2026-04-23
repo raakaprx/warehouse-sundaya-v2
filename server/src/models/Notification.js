@@ -11,6 +11,10 @@ const Notification = sequelize.define('Notification', {
     type: DataTypes.INTEGER,
     allowNull: false
   },
+  alertId: {
+    type: DataTypes.INTEGER,
+    allowNull: true
+  },
   type: {
     type: DataTypes.STRING,
     allowNull: false
@@ -32,6 +36,7 @@ const Notification = sequelize.define('Notification', {
   timestamps: true,
   indexes: [
     { fields: ['userId'] },
+    { fields: ['alertId'] },
     { fields: ['readAt'] },
     { fields: ['createdAt'] }
   ]

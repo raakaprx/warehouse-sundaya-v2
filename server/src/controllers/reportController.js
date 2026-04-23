@@ -1,7 +1,87 @@
-const { Inventory, Material, Site, MaterialRequest, MaterialRequestItem, StockMovement, sequelize } = require('../models');
+const { Inventory, Material, Site, MaterialRequest, MaterialRequestItem, StockMovement, AuditLog, sequelize } = require('../models');
 const { Op } = require('sequelize');
 const XLSX = require('xlsx');
 const PDFDocument = require('pdfkit');
+const os = require('os');
+const { exec } = require('child_process');
+
+exports.getSystemMonitoring = async (req, res) => {
+  try {
+    const memTotal = os.totalmem();
+    const memFree = os.freemem();
+    const memUsed = memTotal - memFree;
+    const ramUsage = (memUsed / memTotal * 100).toFixed(1);
+    
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const requestsLastHour = await AuditLog.count({
+      where: {
+        timestamp: { [Op.gte]: oneHourAgo }
+      }
+    });
+
+    const nodeEnv = process.env.NODE_ENV || 'local';
+    const nodeVersion = process.version;
+    const osType = os.type();
+    const osPlatform = os.platform();
+
+    let diskInfo = { total: 0, free: 0, used: 0, percent: 0 };
+    
+    if (osPlatform === 'win32') {
+      try {
+        const stdout = await new Promise((resolve, reject) => {
+          exec('wmic logicaldisk get size,freespace,caption', (error, stdout) => {
+            if (error) reject(error);
+            else resolve(stdout);
+          });
+        });
+        
+        const lines = stdout.trim().split('\n').slice(1);
+        const cDrive = lines.find(line => line.includes('C:'));
+        if (cDrive) {
+          const parts = cDrive.trim().split(/\s+/);
+          const free = parseInt(parts[1]);
+          const total = parseInt(parts[2]);
+          const used = total - free;
+          diskInfo = {
+            total: (total / (1024 ** 3)).toFixed(2),
+            free: (free / (1024 ** 3)).toFixed(2),
+            used: (used / (1024 ** 3)).toFixed(2),
+            percent: (used / total * 100).toFixed(1)
+          };
+        }
+      } catch (err) {
+        console.error('Disk info error:', err);
+      }
+    } else {
+      // Mock for Linux/Other if needed, or implement df -h
+      diskInfo = { total: 512, free: 256, used: 256, percent: 50 };
+    }
+
+    res.json({
+      success: true,
+      data: {
+        os: osType,
+        ram: {
+          percent: ramUsage,
+          used: (memUsed / (1024 ** 2)).toFixed(0),
+          total: (memTotal / (1024 ** 2)).toFixed(0)
+        },
+        disk: diskInfo,
+        node: {
+          version: nodeVersion,
+          env: nodeEnv
+        },
+        metrics: {
+          requests1h: requestsLastHour,
+          queueJobs: 0
+        },
+        updatedAt: new Date()
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 
 exports.getGlobalStats = async (req, res) => {
   try {
@@ -78,27 +158,127 @@ exports.getExecutiveReport = async (req, res) => {
   }
 };
 
-const buildStockOpnameData = async () => {
+const buildStatusLabel = (status) => {
+  const map = {
+    PENDING: 'Menunggu NOC',
+    REVIEWED_BY_NOC: 'Menunggu Review GM',
+    APPROVED_BY_GM: 'Menunggu NOC Mengirim',
+    APPROVED_READY_TO_SHIP: 'Siap Dikirim',
+    ON_DELIVERY: 'Dalam Pengiriman',
+    FULFILLED: 'Selesai',
+    REJECTED: 'Ditolak',
+    CANCELLED: 'Dibatalkan'
+  };
+  return map[status] || status.replace(/_/g, ' ');
+};
+
+const buildActor = (status) => {
+  const map = {
+    PENDING: 'OM',
+    REVIEWED_BY_NOC: 'GM',
+    APPROVED_BY_GM: 'NOC',
+    APPROVED_READY_TO_SHIP: 'NOC',
+    ON_DELIVERY: 'NOC',
+    FULFILLED: 'OM',
+    REJECTED: 'NOC/GM',
+    CANCELLED: 'OM'
+  };
+  return map[status] || 'SYSTEM';
+};
+
+exports.getFlowMetadata = async (req, res) => {
+  try {
+    const statusValues = MaterialRequest?.rawAttributes?.status?.values || [];
+    const activitySteps = statusValues.map((status, index) => ({
+      id: index + 1,
+      status,
+      label: buildStatusLabel(status),
+      actor: buildActor(status)
+    }));
+
+    const participants = Array.from(new Set(activitySteps.map((s) => s.actor)));
+    const sequenceMessages = activitySteps.slice(0, -1).map((step, index) => {
+      const next = activitySteps[index + 1];
+      return {
+        id: index + 1,
+        from: step.actor,
+        to: next.actor,
+        action: `${step.label} → ${next.label}`,
+        status: next.status
+      };
+    });
+
+    const modelList = Object.values(sequelize.models || {});
+    const classItems = modelList.map((model) => {
+      const attributes = Object.keys(model.rawAttributes || {}).map((key) => {
+        const attr = model.rawAttributes[key];
+        const type = attr?.type?.key || attr?.type?.toString()?.split('(')[0] || 'Unknown';
+        return { name: key, type };
+      });
+      return { name: model.name, attributes };
+    });
+
+    const relationSet = new Set();
+    const relations = [];
+    modelList.forEach((model) => {
+      Object.values(model.associations || {}).forEach((assoc) => {
+        const targetName = assoc.target?.name || assoc.target?.options?.name?.singular;
+        if (!targetName) return;
+        const key = `${model.name}-${assoc.associationType}-${targetName}`;
+        if (relationSet.has(key)) return;
+        relationSet.add(key);
+        relations.push({
+          from: model.name,
+          to: targetName,
+          type: assoc.associationType
+        });
+      });
+    });
+
+    res.json({
+      success: true,
+      data: {
+        activity: { steps: activitySteps },
+        sequence: { participants, messages: sequenceMessages },
+        classes: { items: classItems, relations }
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const buildStockOpnameData = async (user) => {
+  const where = {};
+  if (user?.role === 'OM' && user?.siteId) {
+    where.siteId = user.siteId;
+  }
   const inventory = await Inventory.findAll({
+    where,
     include: [Material, Site]
   });
   return inventory.map((i) => ({
     site: i.Site?.name || '-',
     location: i.Site?.location || '-',
     sku: i.Material?.sku || '-',
+    itemCode: i.Material?.itemCode || '-',
     name: i.Material?.name || '-',
+    unit: i.Material?.unit || '-',
     category: i.Material?.category || '-',
     stock: i.stock,
     minThreshold: i.minThreshold
   }));
 };
 
-const buildStockMutationData = async (startDate, endDate) => {
+const buildStockMutationData = async (startDate, endDate, user) => {
   const where = {};
   if (startDate || endDate) {
     where.createdAt = {};
     if (startDate) where.createdAt[Op.gte] = new Date(startDate);
     if (endDate) where.createdAt[Op.lte] = new Date(endDate);
+  }
+  if (user?.role === 'OM' && user?.siteId) {
+    where.siteId = user.siteId;
   }
   const movements = await StockMovement.findAll({
     where,
@@ -115,12 +295,15 @@ const buildStockMutationData = async (startDate, endDate) => {
   }));
 };
 
-const buildRequestReportData = async (startDate, endDate) => {
+const buildRequestReportData = async (startDate, endDate, user) => {
   const where = {};
   if (startDate || endDate) {
     where.createdAt = {};
     if (startDate) where.createdAt[Op.gte] = new Date(startDate);
     if (endDate) where.createdAt[Op.lte] = new Date(endDate);
+  }
+  if (user?.role === 'OM' && user?.siteId) {
+    where.siteId = user.siteId;
   }
   const requests = await MaterialRequest.findAll({
     where,
@@ -137,7 +320,7 @@ const buildRequestReportData = async (startDate, endDate) => {
     status: r.status,
     deadline: r.deadline,
     totalItems: r.items?.length || 0,
-    totalQty: (r.items || []).reduce((sum, item) => sum + (item.quantity || 0), 0)
+    totalQty: (r.items || []).reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)
   }));
 };
 
@@ -171,38 +354,136 @@ const drawTable = (doc, headers, rows) => {
       y = doc.page.margins.top;
     }
     row.forEach((cell, i) => {
-      doc.text(cell, doc.page.margins.left + (i * colWidth), y, { width: colWidth, align: 'left' });
+      doc.text(String(cell || ''), doc.page.margins.left + (i * colWidth), y, { width: colWidth, align: 'left' });
     });
     y += 16;
   });
   doc.moveDown();
 };
 
-const sendPdf = (res, title, headers, rows, fileName) => {
-  const doc = new PDFDocument({ margin: 36, size: 'A4' });
-  res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `attachment; filename=${fileName}.pdf`);
-  doc.pipe(res);
-  doc.fontSize(16).text(title);
-  doc.moveDown();
-  drawTable(doc, headers, rows);
-  doc.end();
+  const sendPdf = (res, title, headers, rows, fileName) => {
+  try {
+    const doc = new PDFDocument({ margin: 30, size: 'A4' });
+    
+    // ✅ SET PDF HEADERS (CORS already set by router middleware)
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}.pdf"`);
+    
+    // ✅ ERROR HANDLERS BEFORE PIPING
+    doc.on('error', (err) => {
+      console.error('❌ PDFKit Error:', err);
+      if (!res.headersSent) {
+        res.status(500).json({ success: false, message: 'PDF Generation Error: ' + err.message });
+      } else {
+        res.end();
+      }
+    });
+
+    res.on('error', (err) => {
+      console.error('❌ Response Error:', err);
+      doc.end();
+    });
+    
+    // ✅ PIPE LANGSUNG KE RESPONSE
+    doc.pipe(res);
+
+    // Header Report
+    doc.fontSize(20).text(title, { align: 'center' });
+    doc.moveDown();
+    doc.fontSize(10).text(`Generated at: ${new Date().toLocaleString('id-ID')}`, { align: 'center' });
+    doc.moveDown(2);
+
+    // Table Logic
+    const startX = 30;
+    let currentY = doc.y;
+    const columnWidth = (doc.page.width - 60) / headers.length;
+
+    // Draw Headers
+    doc.fontSize(10).font('Helvetica-Bold');
+    headers.forEach((header, i) => {
+      doc.text(header, startX + (i * columnWidth), currentY, { 
+        width: columnWidth, 
+        align: 'left' 
+      });
+    });
+
+    currentY += 20;
+    doc.moveTo(startX, currentY - 5)
+       .lineTo(doc.page.width - 30, currentY - 5)
+       .stroke();
+
+    // Draw Rows
+    doc.font('Helvetica').fontSize(9);
+    rows.forEach((row, rowIndex) => {
+      if (currentY > 750) {
+        doc.addPage();
+        currentY = 30;
+        
+        // Redraw headers on new page
+        doc.fontSize(10).font('Helvetica-Bold');
+        headers.forEach((header, i) => {
+          doc.text(header, startX + (i * columnWidth), currentY, { 
+            width: columnWidth, 
+            align: 'left' 
+          });
+        });
+        currentY += 20;
+        doc.moveTo(startX, currentY - 5)
+           .lineTo(doc.page.width - 30, currentY - 5)
+           .stroke();
+        doc.font('Helvetica').fontSize(9);
+      }
+      
+      row.forEach((cell, i) => {
+        const text = String(cell || '-');
+        doc.text(text, startX + (i * columnWidth), currentY, { 
+          width: columnWidth - 5, 
+          align: 'left',
+          ellipsis: true 
+        });
+      });
+      currentY += 20;
+    });
+
+    // Footer
+    const pages = doc.bufferedPageRange();
+    for (let i = 0; i < pages.count; i++) {
+      doc.switchToPage(i);
+      doc.fontSize(8).text(
+        `Page ${i + 1} of ${pages.count}`,
+        30,
+        doc.page.height - 40,
+        { align: 'center' }
+      );
+    }
+
+    doc.end();
+    console.log(`✅ PDF "${fileName}" generated successfully`);
+  } catch (err) {
+    console.error('❌ PDF Generation Error:', err);
+    if (!res.headersSent) {
+      res.status(500).json({ 
+        success: false, 
+        message: 'Error generating PDF: ' + err.message 
+      });
+    }
+  }
 };
 
 exports.exportReport = async (req, res) => {
   try {
-    const { type, report, startDate, endDate } = req.query;
-    const normalizedType = (type || 'XLSX').toUpperCase();
+    // Gunakan req.body karena rute akan diubah menjadi POST untuk menghindari intersepsi IDM
+    const { report, startDate, endDate } = req.body;
     const normalizedReport = (report || 'stock').toLowerCase();
+    
     let data = [];
     let title = 'Report';
     let fileName = `report_${Date.now()}`;
-
     let pdfHeaders = [];
     let pdfRows = [];
 
     if (normalizedReport === 'stock') {
-      data = await buildStockOpnameData();
+      data = await buildStockOpnameData(req.user);
       title = 'Stock Opname Report';
       fileName = `stock_opname_${Date.now()}`;
       pdfHeaders = ['Site', 'Location', 'SKU', 'Name', 'Category', 'Stock', 'Min'];
@@ -216,7 +497,7 @@ exports.exportReport = async (req, res) => {
         String(row.minThreshold)
       ]);
     } else if (normalizedReport === 'mutation') {
-      data = await buildStockMutationData(startDate, endDate);
+      data = await buildStockMutationData(startDate, endDate, req.user);
       title = 'Stock Mutation Report';
       fileName = `stock_mutation_${Date.now()}`;
       pdfHeaders = ['Date', 'Site', 'SKU', 'Name', 'Type', 'Qty'];
@@ -229,7 +510,7 @@ exports.exportReport = async (req, res) => {
         String(row.quantity)
       ]);
     } else if (normalizedReport === 'request') {
-      data = await buildRequestReportData(startDate, endDate);
+      data = await buildRequestReportData(startDate, endDate, req.user);
       title = 'Material Request Report';
       fileName = `request_report_${Date.now()}`;
       pdfHeaders = ['ID', 'Site', 'Project', 'Status', 'Deadline', 'Total Items', 'Total Qty'];
@@ -244,11 +525,137 @@ exports.exportReport = async (req, res) => {
       ]);
     }
 
-    if (normalizedType === 'PDF') {
-      return sendPdf(res, title, pdfHeaders, pdfRows, fileName);
-    }
-    return sendXlsx(res, title, data, fileName);
+    // Paksa hanya PDF
+    console.log(`📄 Generating ${normalizedReport} report as PDF...`);
+    return sendPdf(res, title, pdfHeaders, pdfRows, fileName);
+    
   } catch (error) {
+    console.error('❌ Export Error:', error);
     res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.getRecentMovementsPdf = async (req, res) => {
+  try {
+    console.log('📄 Generating Recent Movements PDF for user:', req.user?.email || req.user?.id);
+    
+    const where = {};
+    if (req.user?.role === 'OM' && req.user?.siteId) {
+      where.siteId = req.user.siteId;
+    }
+
+    const requests = await MaterialRequest.findAll({
+      where,
+      include: [
+        { model: MaterialRequestItem, as: 'items', include: [Material] },
+        { model: Site }
+      ],
+      order: [['createdAt', 'DESC']],
+      limit: 50
+    });
+
+    if (!requests || requests.length === 0) {
+      console.log('⚠️ No material requests found');
+      return res.status(404).json({ 
+        success: false, 
+        message: 'No material requests found' 
+      });
+    }
+
+    const headers = ['Request ID', 'Material Item', 'Project', 'Quantity', 'Status', 'Date'];
+    const rows = requests.map((req) => [
+      `#REQ-${req.id.toString().padStart(4, '0')}`,
+      req.items?.[0]?.Material?.name || 'N/A',
+      req.project || '-',
+      `${(req.items || []).reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)} Units`,
+      (req.status || 'PENDING').replace(/_/g, ' '),
+      req.createdAt ? new Date(req.createdAt).toLocaleDateString('id-ID') : '-',
+    ]);
+
+    console.log(`✅ Found ${requests.length} material requests. Generating PDF with ${rows.length} rows...`);
+
+    sendPdf(res, 'Recent Movements Report', headers, rows, `recent_movements_${Date.now()}`);
+    
+  } catch (error) {
+    console.error('❌ Error generating recent movements PDF:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to generate report: ' + error.message 
+      });
+    }
+  }
+};
+
+exports.getRequestStatusPdf = async (req, res) => {
+  try {
+    // Support both GET and POST methods
+    const statusType = req.body?.statusType || req.query?.statusType;
+    const siteId = req.body?.siteId || req.query?.siteId;
+    
+    if (!statusType) {
+      return res.status(400).json({ success: false, message: 'statusType parameter required' });
+    }
+
+    const where = {};
+    
+    // For OM users, filter by their site
+    if (req.user?.role === 'OM' && req.user?.siteId) {
+      where.siteId = req.user.siteId;
+    } else if (siteId) {
+      where.siteId = siteId;
+    }
+
+    if (statusType === 'RECEIVED') {
+      where.status = 'FULFILLED';
+    } else if (statusType === 'PENDING') {
+      // Pending / In progress (Exclude fulfilled, rejected, cancelled)
+      where.status = {
+        [Op.notIn]: ['FULFILLED', 'REJECTED', 'CANCELLED']
+      };
+    } else {
+      return res.status(400).json({ success: false, message: 'Invalid statusType. Use RECEIVED or PENDING' });
+    }
+
+    const requests = await MaterialRequest.findAll({
+      where,
+      include: [
+        { model: MaterialRequestItem, as: 'items', include: [Material] },
+        { model: Site }
+      ],
+      order: [['updatedAt', 'DESC']]
+    });
+
+    if (requests.length === 0) {
+      console.log('⚠️ No requests found for statusType:', statusType);
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Tidak ada data untuk diunduh' 
+      });
+    }
+
+    const siteName = requests[0]?.Site?.name || 'All Sites';
+    const title = statusType === 'RECEIVED' 
+      ? `Laporan Barang Diterima - ${siteName}`
+      : `Laporan Barang Belum Diterima - ${siteName}`;
+
+    const headers = ['ID Request', 'Project', 'Item', 'Qty', 'Status', 'Update Terakhir'];
+    const rows = requests.map(r => [
+      `REQ-${r.id.toString().padStart(4, '0')}`,
+      r.project || '-',
+      (r.items || []).map(item => item.Material?.name || '-').join(', '),
+      `${(r.items || []).reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)} ${r.items?.[0]?.Material?.unit || 'Unit'}`,
+      (r.status || 'PENDING').replace(/_/g, ' '),
+      new Date(r.updatedAt).toLocaleDateString('id-ID')
+    ]);
+
+    console.log(`✅ Generating ${statusType} report with ${rows.length} rows`);
+    sendPdf(res, title, headers, rows, `status_report_${statusType.toLowerCase()}_${Date.now()}`);
+
+  } catch (error) {
+    console.error('❌ Error generating request status PDF:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, message: error.message });
+    }
   }
 };

@@ -32,17 +32,44 @@ const Settings = () => {
     email: user?.email || 'faerlyroot@gmail.com',
     phone: user?.phone || '+62 812 3456 7890'
   });
+  const [language, setLanguage] = useState('en');
 
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
   });
+  const [flowData, setFlowData] = useState(null);
+  const [flowLoading, setFlowLoading] = useState(false);
+  const [flowError, setFlowError] = useState('');
+  const laneConfig = [
+    { key: 'OM', label: 'Admin OM', bg: 'bg-sky-50', border: 'border-sky-200', text: 'text-sky-700' },
+    { key: 'NOC', label: 'Admin NOC', bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-700' },
+    { key: 'GM', label: 'Admin GM', bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700' },
+    { key: 'SYSTEM', label: 'System', bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700' }
+  ];
+  const normalizeActor = (actor) => {
+    if (!actor) return 'SYSTEM';
+    const upper = actor.toUpperCase();
+    if (upper.includes('OM')) return 'OM';
+    if (upper.includes('NOC')) return 'NOC';
+    if (upper.includes('GM')) return 'GM';
+    if (upper.includes('SYSTEM')) return 'SYSTEM';
+    return 'SYSTEM';
+  };
+
+  useEffect(() => {
+    const storedLanguage = localStorage.getItem('app_language');
+    setLanguage(storedLanguage || 'en');
+  }, []);
 
   useEffect(() => {
     if (activeTab === 'admin') {
       fetchSites();
       fetchUsers();
+    }
+    if (activeTab === 'flow' && user?.role === 'PROGRAMMER') {
+      fetchFlow();
     }
   }, [activeTab]);
 
@@ -69,6 +96,25 @@ const Settings = () => {
       toast.error('Gagal mengambil data users');
     }
   };
+
+  const fetchFlow = async () => {
+    setFlowLoading(true);
+    setFlowError('');
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.get('http://localhost:5000/api/reports/flow', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setFlowData(res.data?.data || null);
+    } catch (err) {
+      setFlowError('Gagal memuat diagram alur');
+    } finally {
+      setFlowLoading(false);
+    }
+  };
+  const activitySteps = flowData?.activity?.steps || [];
+  const sequenceParticipants = flowData?.sequence?.participants || [];
+  const sequenceMessages = flowData?.sequence?.messages || [];
 
   const handleAddSite = async (e) => {
     e.preventDefault();
@@ -223,6 +269,17 @@ const Settings = () => {
               <FiSettings /> Admin Control
             </button>
           )}
+          {user?.role === 'PROGRAMMER' && (
+            <button 
+              onClick={() => setActiveTab('flow')}
+              className={clsx(
+                "flex items-center gap-3 px-6 py-4 rounded-2xl font-bold transition-all",
+                activeTab === 'flow' ? "bg-red-900 text-white shadow-lg shadow-red-100" : "text-slate-500 hover:bg-slate-50"
+              )}
+            >
+              <FiDatabase /> Flow
+            </button>
+          )}
         </div>
 
         {/* Content Area */}
@@ -267,6 +324,22 @@ const Settings = () => {
                       onChange={(e) => setProfileData({...profileData, phone: e.target.value})}
                       className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-red-900 focus:outline-none transition-all font-bold text-slate-700"
                     />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Bahasa / Language</label>
+                    <select
+                      value={language}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setLanguage(value);
+                        localStorage.setItem('app_language', value);
+                        window.dispatchEvent(new Event('language_changed'));
+                      }}
+                      className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-red-900 focus:outline-none transition-all font-bold text-slate-700"
+                    >
+                      <option value="id">Indonesia</option>
+                      <option value="en">English</option>
+                    </select>
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Role Akun</label>
@@ -360,6 +433,247 @@ const Settings = () => {
                     </div>
                   </div>
                 </form>
+              </div>
+            )}
+
+            {activeTab === 'flow' && user?.role === 'PROGRAMMER' && (
+              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="flex items-center justify-between border-b border-slate-50 pb-6">
+                  <div>
+                    <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">System Flow Diagrams</h3>
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Diagram alur dinamis mengikuti struktur sistem saat ini</p>
+                  </div>
+                  <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-red-900 border border-slate-100">
+                    <FiDatabase size={32} />
+                  </div>
+                </div>
+
+                {flowLoading && (
+                  <div className="flex items-center gap-3 text-slate-500 font-bold">
+                    <div className="w-5 h-5 border-2 border-slate-300 border-t-red-900 rounded-full animate-spin" />
+                    Memuat diagram...
+                  </div>
+                )}
+
+                {flowError && (
+                  <div className="bg-red-50 text-red-900 font-bold px-6 py-4 rounded-2xl border border-red-100">
+                    {flowError}
+                  </div>
+                )}
+
+                {!flowLoading && !flowError && (
+                  <div className="space-y-10">
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-slate-900 text-white rounded-2xl flex items-center justify-center font-black">A</div>
+                        <div>
+                          <h4 className="text-lg font-black text-slate-800">Activity Diagram</h4>
+                          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Status request material</p>
+                        </div>
+                      </div>
+                      <div className="overflow-hidden rounded-[2.5rem] border border-slate-100">
+                        <div className="grid grid-cols-4">
+                          {laneConfig.map((lane) => (
+                            <div key={lane.key} className={clsx("px-4 py-3 text-[10px] font-black uppercase tracking-widest border-b border-r last:border-r-0", lane.bg, lane.border, lane.text)}>
+                              {lane.label}
+                            </div>
+                          ))}
+                        </div>
+                        <div className="divide-y divide-slate-100">
+                          <div className="grid grid-cols-4">
+                            {laneConfig.map((lane) => {
+                              const isStartLane = activitySteps[0] && normalizeActor(activitySteps[0].actor) === lane.key;
+                              return (
+                                <div key={`start-${lane.key}`} className={clsx("px-4 py-3 border-r last:border-r-0", lane.bg)}>
+                                  {isStartLane && (
+                                    <div className="w-6 h-6 rounded-full border-[6px] border-slate-800 bg-white mx-auto" />
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                          {activitySteps.map((step, index) => {
+                            const currentActor = normalizeActor(step.actor);
+                            const nextActor = activitySteps[index + 1] ? normalizeActor(activitySteps[index + 1].actor) : null;
+                            const fromIndex = laneConfig.findIndex((lane) => lane.key === currentActor);
+                            const toIndex = nextActor ? laneConfig.findIndex((lane) => lane.key === nextActor) : -1;
+                            const start = Math.min(fromIndex, toIndex);
+                            const end = Math.max(fromIndex, toIndex);
+                            const arrow = toIndex >= fromIndex ? '→' : '←';
+                            return (
+                              <div key={step.id}>
+                                <div className="grid grid-cols-4">
+                                  {laneConfig.map((lane) => {
+                                    const isActor = lane.key === currentActor;
+                                    return (
+                                      <div key={`${step.id}-${lane.key}`} className={clsx("px-4 py-4 border-r last:border-r-0", lane.bg)}>
+                                        {isActor && (
+                                          <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                                            <div className="flex items-start gap-3">
+                                              <div className="w-8 h-8 rounded-xl bg-slate-900 text-white font-black flex items-center justify-center text-xs">
+                                                {index + 1}
+                                              </div>
+                                              <div>
+                                                <p className="text-sm font-black text-slate-800">{step.label}</p>
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">{step.actor}</p>
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{step.status}</p>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                                {index < activitySteps.length - 1 && (
+                                  <div className="grid grid-cols-4">
+                                    {laneConfig.map((lane, laneIndex) => {
+                                      const isActor = laneIndex === fromIndex;
+                                      return (
+                                        <div key={`${step.id}-connector-${lane.key}`} className={clsx("px-4 py-2 border-r last:border-r-0", lane.bg)}>
+                                          {isActor && toIndex === fromIndex && (
+                                            <div className="flex flex-col items-center text-slate-400 font-black">
+                                              <div className="h-6 w-0.5 bg-slate-300" />
+                                              <span>↓</span>
+                                            </div>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
+                                    {toIndex !== -1 && toIndex !== fromIndex && (
+                                      <div
+                                        className="px-4 py-2"
+                                        style={{ gridColumnStart: start + 1, gridColumnEnd: end + 2 }}
+                                      >
+                                        <div className="flex items-center text-slate-400 font-black">
+                                          <div className="flex-1 border-t-2 border-dashed border-slate-300" />
+                                          <span className="ml-2">{arrow}</span>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                          <div className="grid grid-cols-4">
+                            {laneConfig.map((lane) => {
+                              const isEndLane = activitySteps[activitySteps.length - 1] && normalizeActor(activitySteps[activitySteps.length - 1].actor) === lane.key;
+                              return (
+                                <div key={`end-${lane.key}`} className={clsx("px-4 py-3 border-r last:border-r-0", lane.bg)}>
+                                  {isEndLane && (
+                                    <div className="w-6 h-6 rounded-full border-4 border-slate-800 bg-slate-800 mx-auto" />
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-slate-900 text-white rounded-2xl flex items-center justify-center font-black">S</div>
+                        <div>
+                          <h4 className="text-lg font-black text-slate-800">Sequence Diagram</h4>
+                          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Interaksi antar peran</p>
+                        </div>
+                      </div>
+                      <div className="overflow-hidden rounded-[2.5rem] border border-slate-100">
+                        <div
+                          className="grid border-b border-slate-100"
+                          style={{ gridTemplateColumns: `repeat(${Math.max(sequenceParticipants.length, 1)}, minmax(0, 1fr))` }}
+                        >
+                          {sequenceParticipants.map((participant) => (
+                            <div key={participant} className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-500 bg-slate-50 border-r last:border-r-0">
+                              {participant}
+                            </div>
+                          ))}
+                        </div>
+                        <div className="divide-y divide-slate-100">
+                          {sequenceMessages.map((message) => {
+                            const fromIndex = sequenceParticipants.indexOf(message.from);
+                            const toIndex = sequenceParticipants.indexOf(message.to);
+                            const start = Math.min(fromIndex, toIndex);
+                            const end = Math.max(fromIndex, toIndex);
+                            const arrow = toIndex >= fromIndex ? '→' : '←';
+                            return (
+                              <div
+                                key={message.id}
+                                className="grid items-center"
+                                style={{ gridTemplateColumns: `repeat(${Math.max(sequenceParticipants.length, 1)}, minmax(0, 1fr))` }}
+                              >
+                                <div
+                                  className="px-4 py-4"
+                                  style={{ gridColumnStart: start + 1, gridColumnEnd: end + 2 }}
+                                >
+                                  <div className="flex items-center text-slate-400 font-black">
+                                    <div className="flex-1 border-t-2 border-dashed border-slate-300" />
+                                    <span className="ml-2">{arrow}</span>
+                                  </div>
+                                  <div className="mt-2 text-xs font-bold text-slate-700 text-center">{message.action}</div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-slate-900 text-white rounded-2xl flex items-center justify-center font-black">C</div>
+                        <div>
+                          <h4 className="text-lg font-black text-slate-800">Class Diagram</h4>
+                          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Entitas dan relasi</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                        {flowData?.classes?.items?.map((item, index) => {
+                          const colorSet = [
+                            'bg-sky-50 border-sky-200 text-sky-700',
+                            'bg-purple-50 border-purple-200 text-purple-700',
+                            'bg-emerald-50 border-emerald-200 text-emerald-700',
+                            'bg-amber-50 border-amber-200 text-amber-700',
+                            'bg-rose-50 border-rose-200 text-rose-700',
+                            'bg-indigo-50 border-indigo-200 text-indigo-700'
+                          ];
+                          const color = colorSet[index % colorSet.length];
+                          return (
+                            <div key={item.name} className="bg-white border border-slate-100 rounded-2xl overflow-hidden shadow-sm">
+                              <div className={clsx("px-4 py-3 text-sm font-black uppercase tracking-widest border-b", color)}>
+                                {item.name}
+                              </div>
+                              <div className="p-4 space-y-2">
+                                {item.attributes?.map((attr) => (
+                                  <div key={`${item.name}-${attr.name}`} className="flex items-center justify-between text-xs font-bold text-slate-600">
+                                    <span>{attr.name}</span>
+                                    <span className="text-slate-400">{attr.type}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="bg-white border border-slate-100 rounded-2xl p-5 space-y-3">
+                        <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Relasi</p>
+                        <div className="space-y-3">
+                          {flowData?.classes?.relations?.map((rel, index) => (
+                            <div key={`${rel.from}-${rel.to}-${index}`} className="flex items-center gap-3">
+                              <span className="text-xs font-black text-slate-700">{rel.from}</span>
+                              <div className="flex-1 border-t-2 border-dashed border-slate-200" />
+                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{rel.type}</span>
+                              <span className="text-slate-400 font-black">→</span>
+                              <span className="text-xs font-black text-slate-700">{rel.to}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

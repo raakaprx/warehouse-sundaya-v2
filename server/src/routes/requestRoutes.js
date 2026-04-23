@@ -16,11 +16,13 @@ const authMiddleware = require('../middleware/authMiddleware');
 const { body } = require('express-validator');
 const validate = require('../middleware/validateMiddleware');
 
-const uploadDir = path.join(__dirname, '..', 'uploads', 'receipts');
-fs.mkdirSync(uploadDir, { recursive: true });
+const receiptDir = path.join(__dirname, '..', 'uploads', 'receipts');
+const shippingDir = path.join(__dirname, '..', 'uploads', 'shipping');
+fs.mkdirSync(receiptDir, { recursive: true });
+fs.mkdirSync(shippingDir, { recursive: true });
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, uploadDir),
+const receiptStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, receiptDir),
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname);
     const safeName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
@@ -28,8 +30,29 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({
-  storage,
+const shippingStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, shippingDir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    const safeName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+    cb(null, safeName);
+  }
+});
+
+const uploadReceipt = multer({
+  storage: receiptStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype && file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'));
+    }
+  }
+});
+
+const uploadShipping = multer({
+  storage: shippingStorage,
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     if (file.mimetype && file.mimetype.startsWith('image/')) {
@@ -53,13 +76,22 @@ const normalizeRequestItems = (req, res, next) => {
     }
   }
   if (!req.body.items && req.body.materialId && req.body.quantity) {
-    req.body.items = [{ materialId: req.body.materialId, quantity: req.body.quantity }];
+    req.body.items = [{
+      materialId: req.body.materialId,
+      quantity: req.body.quantity,
+      unit: req.body.unit,
+      serialNumbers: req.body.serialNumbers
+    }];
   }
   next();
 };
 
 router.post('/', normalizeRequestItems, validate([
   body('siteId').notEmpty().withMessage('Site wajib diisi'),
+  body('urgency')
+    .optional()
+    .isIn(['HIGH', 'CRITICAL'])
+    .withMessage('Urgensi hanya boleh HIGH atau CRITICAL'),
   body().custom((_, { req }) => {
     const hasItems = Array.isArray(req.body.items) && req.body.items.length > 0;
     const hasSingle = req.body.materialId && req.body.quantity;
@@ -100,12 +132,11 @@ router.patch('/:id/approve-gm', authMiddleware(['GM', 'PROGRAMMER']), validate([
   body('approved').isBoolean().withMessage('Status approval tidak valid'),
   body('reason').optional().isString()
 ]), approveGM);
-router.patch('/:id/ship-noc', authMiddleware(['NOC', 'PROGRAMMER']), validate([
+router.patch('/:id/ship-noc', authMiddleware(['NOC', 'PROGRAMMER']), uploadShipping.single('shippingPhoto'), validate([
   body('trackingNumber').notEmpty().withMessage('Nomor resi wajib diisi'),
-  body('shippingPhoto').notEmpty().withMessage('Foto pengiriman wajib diisi'),
   body('eta').optional().isISO8601().withMessage('ETA tidak valid')
 ]), shipNOC);
-router.patch('/:id/receive-om', authMiddleware(['OM', 'PROGRAMMER']), upload.single('receiptPhoto'), receiveOM);
+router.patch('/:id/receive-om', authMiddleware(['OM', 'PROGRAMMER']), uploadReceipt.single('receiptPhoto'), receiveOM);
 router.patch('/:id/cancel', authMiddleware(['OM', 'PROGRAMMER']), validate([
   body('reason').notEmpty().withMessage('Alasan wajib diisi')
 ]), cancelRequest);

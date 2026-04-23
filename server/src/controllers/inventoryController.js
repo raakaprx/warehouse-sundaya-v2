@@ -1,4 +1,4 @@
-const { Inventory, Material, Site, AuditLog, Alert, StockMovement, sequelize } = require('../models');
+const { Inventory, Material, Site, AuditLog, Alert, StockMovement, User, MaterialRequest, MaterialRequestItem, sequelize } = require('../models');
 const { getIO } = require('../utils/socket');
 const StockService = require('../services/stockService');
 
@@ -43,7 +43,10 @@ exports.getInventory = async (req, res) => {
 
     const inventory = await Inventory.findAll({
       where,
-      include: [{ model: Material, where: { isDeleted: false } }, Site]
+      include: [
+        { model: Material, required: true },
+        Site
+      ]
     });
 
     res.json({ success: true, data: inventory });
@@ -93,11 +96,17 @@ exports.updateStock = async (req, res) => {
 exports.upsertMaterial = async (req, res) => {
   const t = await sequelize.transaction();
   try {
-    const { id, sku, itemCode, name, category, specs, image, stock, siteId, minThreshold } = req.body;
+    const { id, sku, itemCode, name, category, specs, stock, siteId, minThreshold } = req.body;
+    
+    // Handle file upload if present
+    let imagePath = req.body.image; // Use existing image if no new file uploaded
+    if (req.file) {
+      imagePath = `/uploads/materials/${req.file.filename}`;
+    }
     
     // 1. Find or create the Material
     let material;
-    const materialData = { sku, itemCode, name, category, specs, image };
+    const materialData = { sku, itemCode, name, category, specs, image: imagePath };
     
     // Check if material with SKU already exists
     if (id) {
@@ -157,7 +166,11 @@ exports.deleteMaterial = async (req, res) => {
     const material = await Material.findByPk(id);
     if (!material) return res.status(404).json({ success: false, message: 'Material not found' });
 
-    await material.update({ isDeleted: true });
+    // Manually delete associated Inventory and Alerts to ensure UI is updated
+    await Inventory.destroy({ where: { materialId: id } });
+    await Alert.destroy({ where: { materialId: id } });
+    
+    await material.destroy();
 
     await AuditLog.create({
       userId: req.user.id,
@@ -234,31 +247,54 @@ exports.getStockMovements = async (req, res) => {
 
 exports.getShipments = async (req, res) => {
   try {
-    // In our new schema, shipments are inferred from MaterialRequests with status 'Fulfilled'
-    // or we could have a dedicated Shipment model. For now, let's use requests.
+    const { Op } = require('sequelize');
     const shipments = await MaterialRequest.findAll({
-      where: { status: 'Fulfilled' },
-      include: [Material, Site]
+      where: { 
+        status: {
+          [Op.in]: ['ON_DELIVERY', 'FULFILLED', 'APPROVED_READY_TO_SHIP']
+        }
+      },
+      include: [
+        {
+          model: MaterialRequestItem,
+          as: 'items',
+          include: [Material]
+        },
+        Site
+      ],
+      order: [['updatedAt', 'DESC']]
     });
 
-    const formattedShipments = shipments.map(s => ({
-      id: `SHP-${s.id.toString().padStart(3, '0')}`,
-      origin: 'Pusat',
-      destination: s.Site.name,
-      items: `${s.Material.name} (${s.quantity} unit)`,
-      status: 'Fulfilled',
-      timestamp: s.updatedAt
-    }));
+    const formattedShipments = shipments.map(s => {
+      const itemsList = s.items && s.items.length > 0 
+        ? s.items.map(item => `${item.Material?.name || 'Unknown'} (${item.quantity} ${item.unit || 'unit'})`).join(', ')
+        : 'No items';
+      
+      return {
+        id: s.id,
+        resi: s.trackingNumber || `REQ-${s.id.toString().padStart(4, '0')}`,
+        project: s.project || 'No Project',
+        expedition: s.trackingNumber ? (s.trackingNumber.includes(' ') ? s.trackingNumber.split(' ')[0] : 'Ekspedisi') : 'Internal',
+        to: s.destination || s.Site?.name || 'Unknown',
+        destination: s.destination || s.Site?.name || 'Unknown',
+        items: itemsList,
+        status: s.status === 'FULFILLED' ? 'DELIVERED' : (s.status === 'ON_DELIVERY' ? 'IN_TRANSIT' : 'PENDING'),
+        timestamp: s.updatedAt,
+        shippingPhoto: s.shippingPhoto,
+        receiptPhoto: s.receiptPhoto
+      };
+    });
 
     res.json({ success: true, data: formattedShipments });
   } catch (error) {
+    console.error('getShipments error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
 exports.getMaterials = async (req, res) => {
   try {
-    const materials = await Material.findAll({ where: { isDeleted: false } });
+    const materials = await Material.findAll();
     res.json({ success: true, data: materials });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

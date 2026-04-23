@@ -3,19 +3,43 @@ const { Op } = require('sequelize');
 const StockService = require('../services/stockService');
 const { getIO } = require('../utils/socket');
 const { sendEmail } = require('../utils/emailService');
+const { runThresholdCheck } = require('../utils/cron');
 
 const ADMIN_EMAIL = 'faerlyroot@gmail.com';
 
 exports.createRequest = async (req, res) => {
   const t = await sequelize.transaction();
   try {
-    const { items, materialId, quantity, siteId, project, description, urgency, deadline } = req.body;
-    
+    const { items, materialId, quantity, unit, serialNumbers, siteId, project, description, urgency, deadline, documentNo, destination } = req.body;
+    const normalizedUrgency = urgency === 'CRITICAL' ? 'CRITICAL' : 'HIGH';
+    const selectedSite = await Site.findByPk(siteId, { transaction: t });
+    if (!selectedSite) {
+      await t.rollback();
+      return res.status(400).json({ success: false, message: 'Site tidak valid' });
+    }
+    if (req.user.role === 'OM' && /pusat/i.test(selectedSite.name || '')) {
+      await t.rollback();
+      return res.status(400).json({ success: false, message: 'Request OM hanya boleh untuk site Papua atau Maluku' });
+    }
+//     return res.json({
+//   debug: {
+//     siteId,
+//     project,
+//     documentNo,
+//     destination,
+//     description,
+//     urgency: normalizedUrgency,
+//     requesterId: req.user?.id,
+//     deadline
+//   }
+// });;//debugingg
     const request = await MaterialRequest.create({
       siteId,
       project,
+      documentNo,
+      destination,
       description,
-      urgency: urgency || 'NORMAL',
+      urgency: normalizedUrgency,
       requesterId: req.user.id,
       deadline: deadline || null,
       status: 'PENDING'
@@ -23,13 +47,15 @@ exports.createRequest = async (req, res) => {
 
     const finalItems = items && items.length > 0
       ? items
-      : (materialId && quantity ? [{ materialId, quantity }] : []);
+      : (materialId && quantity ? [{ materialId, quantity, unit, serialNumbers }] : []);
 
     if (finalItems.length > 0) {
       const requestItems = finalItems.map(item => ({
         requestId: request.id,
         materialId: item.materialId,
-        quantity: item.quantity
+        quantity: item.quantity,
+        unit: item.unit || null,
+        serialNumbers: item.serialNumbers || null
       }));
       await MaterialRequestItem.bulkCreate(requestItems, { transaction: t });
     }
@@ -42,7 +68,7 @@ exports.createRequest = async (req, res) => {
       id: request.id,
       project: request.project,
       siteId: request.siteId,
-      message: `New material request (${urgency || 'NORMAL'}) for project ${project}`
+      message: `New material request (${normalizedUrgency}) for project ${project}`
     });
 
     await AuditLog.create({
@@ -83,7 +109,7 @@ exports.getRequests = async (req, res) => {
         { 
           model: MaterialRequestItem, 
           as: 'items',
-          include: [{ model: Material, attributes: ['id', 'name', 'sku', 'category', 'itemCode'] }]
+          include: [{ model: Material, attributes: ['id', 'name', 'sku', 'category', 'itemCode', 'unit'] }]
         },
         { model: Site, attributes: ['id', 'name', 'location'] }
       ],
@@ -213,9 +239,13 @@ exports.shipNOC = async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const { id } = req.params;
-    const { trackingNumber, shippingPhoto, eta } = req.body;
+    const { trackingNumber, eta } = req.body;
+    const shippingPhoto = req.file ? `/uploads/shipping/${req.file.filename}` : null;
     const request = await MaterialRequest.findByPk(id, {
-      include: [{ model: MaterialRequestItem, as: 'items', include: [Material] }],
+      include: [
+        { model: MaterialRequestItem, as: 'items', include: [Material] },
+        { model: Site, attributes: ['id', 'name', 'location'] }
+      ],
       transaction: t,
       lock: t.LOCK.UPDATE
     });
@@ -228,6 +258,10 @@ exports.shipNOC = async (req, res) => {
     if (!request.items || request.items.length === 0) {
       await t.rollback();
       return res.status(400).json({ success: false, message: 'Item request tidak ditemukan' });
+    }
+    if (!shippingPhoto) {
+      await t.rollback();
+      return res.status(400).json({ success: false, message: 'Foto pengiriman wajib diunggah' });
     }
 
     const pusatSite = await Site.findOne({ where: { name: 'Pusat' }, transaction: t });
@@ -302,7 +336,7 @@ exports.shipNOC = async (req, res) => {
       userId: req.user.id,
       action: 'SHIP_MATERIAL',
       module: 'SHIPPING',
-      details: `Shipping material for request ID ${id}. Tracking: ${trackingNumber}`
+      details: `Ship request #${id} | Date: ${new Date().toISOString()} | Tracking: ${trackingNumber || '-'} | ETA: ${eta || '-'} | Site: ${request.Site?.name || request.siteId} | Shipping Photo: ${shippingPhoto || '-'} | Items: ${(request.items || []).map((it) => `${it.Material?.name || it.materialId} x${it.quantity}`).join(', ')}`
     }, { transaction: t });
 
     await Notification.create({
@@ -318,6 +352,7 @@ exports.shipNOC = async (req, res) => {
       siteId: request.siteId,
       type: 'SHIP'
     });
+    runThresholdCheck().catch(() => {});
     res.json({ success: true, data: request });
   } catch (error) {
     await t.rollback();
@@ -378,7 +413,7 @@ exports.receiveOM = async (req, res) => {
       userId: req.user.id,
       action: 'RECEIVE_MATERIAL',
       module: 'SHIPPING',
-      details: `Received material for request ID ${id} (Fulfilled). Stock at site ${request.Site?.name} increased.`
+      details: `Receive request #${id} | Date: ${new Date().toISOString()} | Site: ${request.Site?.name || request.siteId} | Tracking: ${request.trackingNumber || '-'} | Receipt Photo: ${receiptPhoto || '-'} | Items: ${(request.items || []).map((it) => `${it.Material?.name || it.materialId} x${it.quantity}`).join(', ')}`
     }, { transaction: t });
 
     await Notification.create({
@@ -395,6 +430,7 @@ exports.receiveOM = async (req, res) => {
       siteId: request.siteId,
       type: 'RECEIVE'
     });
+    runThresholdCheck().catch(() => {});
     res.json({ success: true, data: request });
   } catch (error) {
     await t.rollback();

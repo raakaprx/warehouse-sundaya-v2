@@ -11,6 +11,7 @@ const UsedMaterials = () => {
   const { user } = useAuth();
   const [reports, setReports] = useState([]);
   const [materials, setMaterials] = useState([]);
+  const [sites, setSites] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [photoFile, setPhotoFile] = useState(null);
@@ -19,15 +20,36 @@ const UsedMaterials = () => {
   const [newReport, setNewReport] = useState({
     materialId: '',
     quantity: 1,
+    unit: '',
+    serialNumbers: '',
+    documentNo: '',
+    returnSite: '',
+    siteId: '',
     condition: 'BROKEN',
-    conditionPercentage: 0,
     description: ''
   });
+  const isOm = user?.role === 'OM';
+  const pageTitle = 'Recycle Material';
+  const pageSubtitle = 'Pelaporan barang rusak/terpakai untuk proses recycle dan tindak lanjut';
+  const allowedSites = isOm
+    ? sites.filter((site) => {
+      if (user?.siteId) return String(site.id) === String(user.siteId);
+      const name = String(site?.name || '').toLowerCase();
+      return name.includes('papua') || name.includes('maluku');
+    })
+    : sites;
 
   useEffect(() => {
     fetchReports();
     fetchMaterials();
+    fetchSites();
   }, []);
+
+  useEffect(() => {
+    if (showModal && user?.siteId && !newReport.siteId) {
+      setNewReport((prev) => ({ ...prev, siteId: user.siteId }));
+    }
+  }, [showModal, user?.siteId, newReport.siteId]);
 
   useEffect(() => {
     if (!showModal) {
@@ -68,6 +90,18 @@ const UsedMaterials = () => {
     }
   };
 
+  const fetchSites = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.get('http://localhost:5000/api/inventory/sites', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setSites(res.data.data);
+    } catch (err) {
+      console.error('Failed to fetch sites', err);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -75,8 +109,12 @@ const UsedMaterials = () => {
       const formData = new FormData();
       formData.append('materialId', newReport.materialId);
       formData.append('quantity', newReport.quantity);
+      formData.append('unit', newReport.unit);
+      formData.append('serialNumbers', newReport.serialNumbers);
+      formData.append('documentNo', newReport.documentNo);
+      formData.append('returnSite', newReport.returnSite);
+      formData.append('siteId', newReport.siteId || '');
       formData.append('condition', newReport.condition);
-      formData.append('conditionPercentage', newReport.conditionPercentage);
       formData.append('description', newReport.description);
       if (photoFile) {
         formData.append('photo', photoFile);
@@ -91,8 +129,12 @@ const UsedMaterials = () => {
       setNewReport({
         materialId: '',
         quantity: 1,
+        unit: '',
+        serialNumbers: '',
+        documentNo: '',
+        returnSite: '',
+        siteId: user?.siteId || '',
         condition: 'BROKEN',
-        conditionPercentage: 0,
         description: ''
       });
       setPhotoFile(null);
@@ -133,24 +175,24 @@ const UsedMaterials = () => {
     return `http://localhost:5000${photo}`;
   };
 
-  const tableColSpan = (user?.role === 'NOC' || user?.role === 'PROGRAMMER') ? 8 : 7;
+  const tableColSpan = (user?.role === 'NOC' || user?.role === 'PROGRAMMER') ? 9 : 8;
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Used Materials</h1>
-          <p className="text-slate-500 mt-1 font-medium italic">Report and track used/rejected items for recycling</p>
+          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">{pageTitle}</h1>
+          <p className="text-slate-500 mt-1 font-medium italic">{pageSubtitle}</p>
         </div>
         
-        {user?.role === 'OM' && (
+        {isOm && (
           <button 
             onClick={() => setShowModal(true)}
             className="px-6 py-4 bg-red-600 text-white rounded-2xl text-sm font-black uppercase tracking-widest hover:bg-red-700 transition-all shadow-xl shadow-red-200 flex items-center gap-3 active:scale-95"
           >
             <FiPlus size={20} className="stroke-[3]" />
-            Report Used Item
+            Input Recycle
           </button>
         )}
       </div>
@@ -161,7 +203,9 @@ const UsedMaterials = () => {
           <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-sundaya-red shadow-sm border border-slate-100">
             <FiRefreshCw />
           </div>
-          <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Reported Items</h3>
+          <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">
+            Riwayat Recycle Material
+          </h3>
         </div>
         
         <div className="overflow-x-auto">
@@ -171,6 +215,7 @@ const UsedMaterials = () => {
                 <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Date</th>
                 <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Site / Reporter</th>
                 <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Material</th>
+                <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Detail</th>
                 <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Photo</th>
                 <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Condition</th>
                 <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Description</th>
@@ -213,8 +258,17 @@ const UsedMaterials = () => {
                       )}
                       <div>
                         <p className="text-sm font-bold text-slate-700">{report.Material?.name}</p>
-                        <p className="text-[10px] font-bold text-slate-400">Qty: {report.quantity}</p>
+                        <p className="text-[10px] font-bold text-slate-400">Qty: {report.quantity} {report.unit || report.Material?.unit || 'Unit'}</p>
                       </div>
+                    </div>
+                  </td>
+                  <td className="px-8 py-6">
+                    <div className="flex flex-col gap-1">
+                      <p className="text-xs font-bold text-slate-700">{report.documentNo || '-'}</p>
+                      <p className="text-[10px] font-bold text-slate-400">{report.returnSite || '-'}</p>
+                      {report.serialNumbers && (
+                        <p className="text-[10px] font-bold text-slate-400 line-clamp-2" title={report.serialNumbers}>{report.serialNumbers}</p>
+                      )}
                     </div>
                   </td>
                   <td className="px-8 py-6">
@@ -281,8 +335,8 @@ const UsedMaterials = () => {
           <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
             <div className="p-8 border-b border-slate-50 flex justify-between items-center">
               <div>
-                <h3 className="text-xl font-bold text-slate-800 tracking-tight">Report Used Item</h3>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Recycling Program</p>
+                <h3 className="text-xl font-bold text-slate-800 tracking-tight">Form Recycle Material</h3>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Input Barang Untuk Proses Recycle</p>
               </div>
               <button onClick={() => setShowModal(false)} className="p-2 hover:bg-slate-50 rounded-xl transition-all">
                 <FiXCircle className="text-slate-300 hover:text-red-500" size={24} />
@@ -291,11 +345,36 @@ const UsedMaterials = () => {
             
             <form onSubmit={handleSubmit} className="p-8 space-y-6">
               <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 ml-1">Site Asal</label>
+                <select
+                  className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-sundaya-red focus:outline-none transition-all font-bold text-slate-700"
+                  value={newReport.siteId}
+                  onChange={(e) => setNewReport({ ...newReport, siteId: e.target.value })}
+                  disabled={isOm && allowedSites.length === 1}
+                  required
+                >
+                  {!newReport.siteId && <option value="">Pilih Site</option>}
+                  {allowedSites.map((site) => (
+                    <option key={site.id} value={site.id}>
+                      {site.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 ml-1">Material Item</label>
                 <select 
                   className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-sundaya-red focus:outline-none transition-all font-bold text-slate-700"
                   value={newReport.materialId}
-                  onChange={(e) => setNewReport({...newReport, materialId: e.target.value})}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    const selected = materials.find((m) => m.id.toString() === value);
+                    setNewReport({
+                      ...newReport,
+                      materialId: value,
+                      unit: selected?.unit || newReport.unit
+                    });
+                  }}
                   required
                 >
                   <option value="">Select Material</option>
@@ -303,31 +382,59 @@ const UsedMaterials = () => {
                 </select>
               </div>
 
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 ml-1">Quantity</label>
+                <input 
+                  type="number" 
+                  min="1"
+                  className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-sundaya-red focus:outline-none transition-all font-bold text-slate-700"
+                  value={newReport.quantity}
+                  onChange={(e) => setNewReport({...newReport, quantity: e.target.value})}
+                  required
+                />
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 ml-1">Quantity</label>
-                  <input 
-                    type="number" 
-                    min="1"
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 ml-1">Unit</label>
+                  <input
+                    type="text"
                     className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-sundaya-red focus:outline-none transition-all font-bold text-slate-700"
-                    value={newReport.quantity}
-                    onChange={(e) => setNewReport({...newReport, quantity: e.target.value})}
-                    required
+                    value={newReport.unit}
+                    onChange={(e) => setNewReport({...newReport, unit: e.target.value})}
+                    placeholder="Unit"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 ml-1">Condition %</label>
-                  <div className="flex items-center gap-2 px-5 py-4 bg-slate-50 rounded-2xl border-2 border-transparent">
-                    <input 
-                      type="range" 
-                      min="0" 
-                      max="100" 
-                      className="w-full accent-sundaya-red"
-                      value={newReport.conditionPercentage}
-                      onChange={(e) => setNewReport({...newReport, conditionPercentage: e.target.value})}
-                    />
-                    <span className="text-xs font-black text-slate-700 min-w-[30px]">{newReport.conditionPercentage}%</span>
-                  </div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 ml-1">Document No</label>
+                  <input
+                    type="text"
+                    className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-sundaya-red focus:outline-none transition-all font-bold text-slate-700"
+                    value={newReport.documentNo}
+                    onChange={(e) => setNewReport({...newReport, documentNo: e.target.value})}
+                    placeholder="e.g. RM-2024-001"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 ml-1">Return Site</label>
+                  <input
+                    type="text"
+                    className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-sundaya-red focus:outline-none transition-all font-bold text-slate-700"
+                    value={newReport.returnSite}
+                    onChange={(e) => setNewReport({...newReport, returnSite: e.target.value})}
+                    placeholder="e.g. Gudang Pusat"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 ml-1">Serial Numbers</label>
+                  <input
+                    type="text"
+                    className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-sundaya-red focus:outline-none transition-all font-bold text-slate-700"
+                    value={newReport.serialNumbers}
+                    onChange={(e) => setNewReport({...newReport, serialNumbers: e.target.value})}
+                    placeholder="SN001, SN002"
+                  />
                 </div>
               </div>
 
@@ -377,10 +484,10 @@ const UsedMaterials = () => {
               </div>
 
               <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 ml-1">Description / Notes</label>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 ml-1">Deskripsi Recycle</label>
                 <textarea 
                   className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-sundaya-red focus:outline-none transition-all font-bold text-slate-700 min-h-[100px]"
-                  placeholder="Describe damage or condition..."
+                  placeholder="Jelaskan kondisi dan alasan recycle..."
                   value={newReport.description}
                   onChange={(e) => setNewReport({...newReport, description: e.target.value})}
                 />

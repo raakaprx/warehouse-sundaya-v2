@@ -41,6 +41,7 @@ router.post('/', authMiddleware(['OM', 'NOC', 'PROGRAMMER']), upload.single('pho
   body('quantity').isInt({ min: 1 }).withMessage('Quantity minimal 1'),
   body('condition').notEmpty().withMessage('Kondisi wajib diisi'),
   body('condition').isIn(['GOOD', 'REPAIRABLE', 'BROKEN']).withMessage('Kondisi tidak valid'),
+  body('description').optional().isString().withMessage('Deskripsi tidak valid'),
   body('conditionPercentage').optional().isInt({ min: 0, max: 100 }).withMessage('Persentase kondisi harus 0-100'),
   body('siteId').optional().isInt().withMessage('Site tidak valid')
 ]), createReport);

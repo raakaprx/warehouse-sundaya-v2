@@ -8,13 +8,21 @@ const MaterialRequest = sequelize.define('MaterialRequest', {
     autoIncrement: true,
   },
   urgency: {
-    type: DataTypes.ENUM('NORMAL', 'HIGH', 'CRITICAL'),
-    defaultValue: 'NORMAL',
+    type: DataTypes.ENUM('HIGH', 'CRITICAL'),
+    defaultValue: 'HIGH',
     allowNull: false
   },
   project: {
     type: DataTypes.STRING,
     allowNull: true,
+  },
+  documentNo: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  destination: {
+    type: DataTypes.STRING,
+    allowNull: true
   },
   description: {
     type: DataTypes.TEXT,

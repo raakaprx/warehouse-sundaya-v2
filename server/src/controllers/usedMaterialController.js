@@ -3,7 +3,7 @@ const { UsedMaterialReport, Material, Site, User, AuditLog, sequelize } = requir
 exports.createReport = async (req, res) => {
   const t = await sequelize.transaction();
   try {
-    const { materialId, quantity, condition, conditionPercentage, description, siteId } = req.body;
+    const { materialId, quantity, condition, conditionPercentage, description, siteId, unit, serialNumbers, documentNo, returnSite } = req.body;
     const photo = req.file ? `/uploads/used-materials/${req.file.filename}` : req.body.photo;
     const parsedMaterialId = materialId ? parseInt(materialId) : null;
     const parsedQuantity = quantity ? parseInt(quantity) : null;
@@ -16,14 +16,23 @@ exports.createReport = async (req, res) => {
     const safeConditionPercentage = Number.isNaN(parsedConditionPercentage) ? null : parsedConditionPercentage;
     const safeSiteId = Number.isNaN(parsedSiteId) ? null : parsedSiteId;
 
+    const finalSiteId = safeSiteId || req.user.siteId;
+    if (!finalSiteId) {
+      await t.rollback();
+      return res.status(400).json({ success: false, message: 'Site asal wajib diisi' });
+    }
     const report = await UsedMaterialReport.create({
       materialId: safeMaterialId,
       quantity: safeQuantity,
+      unit,
+      serialNumbers,
+      documentNo,
+      returnSite,
       condition,
       conditionPercentage: safeConditionPercentage,
       description,
       photo,
-      siteId: safeSiteId || req.user.siteId,
+      siteId: finalSiteId,
       reporterId: req.user.id,
       status: 'REPORTED'
     }, { transaction: t });
@@ -32,7 +41,7 @@ exports.createReport = async (req, res) => {
       userId: req.user.id,
       action: 'REPORT_USED_MATERIAL',
       module: 'USED_MATERIAL',
-      details: `Reported ${quantity} used items (Material ID: ${materialId}) at Site ID: ${report.siteId}`
+      details: `Recycle report: ${quantity} unit (Material ID: ${materialId}) di Site ID: ${report.siteId}`
     }, { transaction: t });
 
     await t.commit();
@@ -59,7 +68,7 @@ exports.getReports = async (req, res) => {
     const reports = await UsedMaterialReport.findAll({
       where,
       include: [
-        { model: Material, attributes: ['name', 'sku', 'image'] },
+        { model: Material, attributes: ['name', 'sku', 'image', 'itemCode', 'unit'] },
         { model: Site, attributes: ['name', 'location'] },
         { model: User, attributes: ['username'] }
       ],

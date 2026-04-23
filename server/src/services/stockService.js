@@ -1,5 +1,6 @@
 const { sequelize, Inventory, AuditLog, StockMovement } = require('../models');
 const { getIO } = require('../utils/socket');
+const { runThresholdCheck } = require('../utils/cron');
 
 class StockService {
   /**
@@ -24,15 +25,22 @@ class StockService {
       await sourceInventory.save({ transaction: t });
 
       // 2. Increase stock at destination site
-      const [destInventory, created] = await Inventory.findOrCreate({
+      let destInventory = await Inventory.findOne({
         where: { siteId: toSiteId, materialId },
-        defaults: { stock: 0 },
         transaction: t,
         lock: t.LOCK.UPDATE
       });
 
-      destInventory.stock += quantity;
-      await destInventory.save({ transaction: t });
+      if (destInventory) {
+        destInventory.stock += quantity;
+        await destInventory.save({ transaction: t });
+      } else {
+        destInventory = await Inventory.create({
+          siteId: toSiteId,
+          materialId,
+          stock: quantity
+        }, { transaction: t });
+      }
 
       await StockMovement.create({
         materialId,
@@ -70,6 +78,7 @@ class StockService {
         quantity,
         type: 'TRANSFER'
       });
+      runThresholdCheck().catch(() => {});
       return { success: true };
     } catch (error) {
       await t.rollback();
@@ -84,14 +93,22 @@ class StockService {
     const t = await sequelize.transaction();
 
     try {
-      const [inventory] = await Inventory.findOrCreate({
+      let inventory = await Inventory.findOne({
         where: { siteId, materialId },
-        defaults: { stock: 0 },
         transaction: t,
         lock: t.LOCK.UPDATE
       });
 
+      if (!inventory) {
+        inventory = await Inventory.create({
+          siteId,
+          materialId,
+          stock: 0
+        }, { transaction: t });
+      }
+
       inventory.stock += adjustment;
+      
       if (inventory.stock < 0) throw new Error('Stok tidak boleh negatif');
       
       await inventory.save({ transaction: t });
@@ -120,6 +137,7 @@ class StockService {
         stock: inventory.stock,
         type: 'ADJUST'
       });
+      runThresholdCheck().catch(() => {});
       return inventory;
     } catch (error) {
       await t.rollback();

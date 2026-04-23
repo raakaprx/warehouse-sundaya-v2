@@ -27,6 +27,14 @@ const MaterialRequestItem = sequelize.define('MaterialRequestItem', {
     type: DataTypes.INTEGER,
     allowNull: false,
     defaultValue: 1
+  },
+  unit: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  serialNumbers: {
+    type: DataTypes.TEXT,
+    allowNull: true
   }
 });
 

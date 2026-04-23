@@ -3,6 +3,7 @@ const router = express.Router();
 const authMiddleware = require('../middleware/authMiddleware');
 const validate = require('../middleware/validateMiddleware');
 const { body, param } = require('express-validator');
+const upload = require('../middleware/uploadMiddleware');
 const { 
   getInventory, 
   updateStock, 
@@ -28,6 +29,7 @@ router.post('/update-thresholds', authMiddleware(['NOC', 'PROGRAMMER']), updateT
 
 router.post('/upsert', 
   authMiddleware(['NOC', 'PROGRAMMER']), 
+  upload.single('image'),
   validate([
     body('sku').notEmpty().withMessage('SKU wajib diisi'),
     body('name').notEmpty().withMessage('Nama material wajib diisi'),

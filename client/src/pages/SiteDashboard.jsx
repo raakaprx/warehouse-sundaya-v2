@@ -4,12 +4,14 @@ import {
   FiPlus, FiXCircle, FiMapPin, FiCheckCircle, FiShield
 } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { clsx } from 'clsx';
 import { toast } from 'react-hot-toast';
 
 const SiteDashboard = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [requests, setRequests] = useState([]);
@@ -17,11 +19,16 @@ const SiteDashboard = () => {
   const [sites, setSites] = useState([]);
   const [newRequest, setNewRequest] = useState({
     siteId: '',
-    materialId: '',
-    quantity: 1,
+    items: [],
+    documentNo: '',
+    destination: '',
     project: '',
-    description: ''
+    description: '',
+    urgency: 'HIGH',
+    deadline: ''
   });
+  const [currentItem, setCurrentItem] = useState({ materialId: '', quantity: 1 });
+  const [itemsLocked, setItemsLocked] = useState(false);
 
   const [stats, setStats] = useState({
     totalRequests: 0,
@@ -32,6 +39,17 @@ const SiteDashboard = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (!showModal || user?.role !== 'OM' || newRequest.siteId) return;
+    const omSites = sites.filter((site) => {
+      const name = String(site?.name || '').toLowerCase();
+      return name.includes('papua') || name.includes('maluku');
+    });
+    if (omSites.length > 0) {
+      setNewRequest((prev) => ({ ...prev, siteId: String(omSites[0].id) }));
+    }
+  }, [showModal, user?.role, newRequest.siteId, sites]);
 
   const fetchData = async () => {
     try {
@@ -67,19 +85,30 @@ const SiteDashboard = () => {
 
   const handleCreateRequest = async (e) => {
     e.preventDefault();
+    if (newRequest.items.length === 0) {
+      toast.error('Tambahkan minimal satu item material');
+      return;
+    }
     try {
       const token = localStorage.getItem('token');
+      const date = new Date();
+      const datePart = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`;
+      const randomPart = Math.floor(1000 + Math.random() * 9000);
+      const autoDocumentNo = newRequest.documentNo?.trim() || `MR-${datePart}-${randomPart}`;
       const payload = {
+        ...newRequest,
         siteId: parseInt(newRequest.siteId),
+        documentNo: autoDocumentNo,
         project: newRequest.project,
+        destination: newRequest.destination,
         description: newRequest.description,
-        urgency: 'NORMAL',
-        items: [
-          {
-            materialId: parseInt(newRequest.materialId),
-            quantity: parseInt(newRequest.quantity)
-          }
-        ]
+        deadline: newRequest.deadline || '',
+        urgency: newRequest.urgency || 'HIGH',
+        items: newRequest.items.map((item) => ({
+          materialId: parseInt(item.materialId),
+          quantity: parseInt(item.quantity),
+          unit: item.unit || null
+        }))
       };
       
       await axios.post('http://localhost:5000/api/requests', payload, {
@@ -88,7 +117,9 @@ const SiteDashboard = () => {
       
       toast.success('Request created successfully');
       setShowModal(false);
-      setNewRequest({ siteId: '', materialId: '', quantity: 1, project: '', description: '' });
+      setNewRequest({ siteId: '', items: [], documentNo: '', destination: '', project: '', description: '', urgency: 'HIGH', deadline: '' });
+      setCurrentItem({ materialId: '', quantity: 1 });
+      setItemsLocked(false);
       fetchData();
     } catch (err) {
       console.error('Error creating request:', err.response?.data || err.message);
@@ -106,6 +137,106 @@ const SiteDashboard = () => {
     }
   };
 
+  const handleAddItem = () => {
+    if (itemsLocked) return;
+    const quantity = Number(currentItem.quantity);
+    if (!currentItem.materialId || !Number.isFinite(quantity) || quantity <= 0) return;
+    const selected = materials.find((m) => m.id.toString() === currentItem.materialId);
+    setNewRequest((prev) => ({
+      ...prev,
+      items: [
+        ...prev.items,
+        {
+          materialId: currentItem.materialId,
+          quantity,
+          unit: selected?.unit || null,
+          name: selected?.name || ''
+        }
+      ]
+    }));
+    setCurrentItem({ materialId: '', quantity: 1 });
+  };
+
+  const handleRemoveItem = (index) => {
+    setNewRequest((prev) => ({
+      ...prev,
+      items: prev.items.filter((_, i) => i !== index)
+    }));
+  };
+
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handleDownloadStatusReport = async (statusType) => {
+    const toastId = toast.loading(`Generating ${statusType === 'RECEIVED' ? 'Received' : 'Pending'} items report...`);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios({
+        url: 'http://localhost:5000/api/reports/request-status-pdf',
+        method: 'POST',
+        headers: { 
+          Authorization: `Bearer ${token}`
+        },
+        data: { statusType },
+        responseType: 'blob'
+      });
+
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `${statusType}_Items_Report_${new Date().getTime()}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(link);
+
+      toast.success('Download started!', { id: toastId });
+    } catch (error) {
+      console.error('Download error:', error);
+      toast.error('Failed to download report.', { id: toastId });
+    }
+  };
+
+  const handleDownloadReport = async () => {
+    const toastId = toast.loading('Generating report...');
+    try {
+      const token = localStorage.getItem('token');
+      
+      const response = await axios({
+        url: 'http://localhost:5000/api/reports/recent-movements-pdf',
+        method: 'POST',
+        headers: { 
+          Authorization: `Bearer ${token}`
+        },
+        responseType: 'blob' // Memaksa axios menerima data mentah (PDF)
+      });
+
+      // Membuat URL blob dari data yang diterima
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Recent_Movements_${new Date().getTime()}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      
+      // Bersihkan memori
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(link);
+
+      toast.success('Download started!', { id: toastId });
+    } catch (error) {
+      console.error('Download error:', error);
+      toast.error('Failed to download report. Check server logs.', { id: toastId });
+    }
+  };
+
+  const requestableSites = user?.role === 'OM'
+    ? sites.filter((site) => {
+      const name = String(site?.name || '').toLowerCase();
+      return name.includes('papua') || name.includes('maluku');
+    })
+    : sites;
+
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8">
       {/* Header */}
@@ -117,12 +248,31 @@ const SiteDashboard = () => {
           <p className="text-slate-500 mt-1 font-medium italic">Logistics operations monitoring for {user?.site || 'Headquarters'}</p>
         </div>
         <div className="flex gap-3">
-          <button className="px-5 py-3 bg-white border border-slate-100 rounded-2xl text-xs font-black uppercase tracking-widest text-slate-500 hover:text-sundaya-red transition-all shadow-sm">
-            Download Report
-          </button>
+          <div className="flex flex-col gap-2">
+            <button
+                onClick={handleDownloadReport}
+                className="px-5 py-3 bg-white border border-slate-100 rounded-2xl text-xs font-black uppercase tracking-widest text-slate-500 hover:text-sundaya-red transition-all shadow-sm flex items-center gap-2 w-full justify-center"
+              >
+                Download History
+              </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleDownloadStatusReport('RECEIVED')}
+                className="px-3 py-2 bg-emerald-50 border border-emerald-100 rounded-xl text-[9px] font-black uppercase tracking-widest text-emerald-600 hover:bg-emerald-100 transition-all flex items-center gap-1"
+              >
+                <FiCheckCircle size={12} /> Diterima
+              </button>
+              <button
+                onClick={() => handleDownloadStatusReport('PENDING')}
+                className="px-3 py-2 bg-blue-50 border border-blue-100 rounded-xl text-[9px] font-black uppercase tracking-widest text-blue-600 hover:bg-blue-100 transition-all flex items-center gap-1"
+              >
+                <FiTruck size={12} /> Belum Diterima
+              </button>
+            </div>
+          </div>
           {user?.role === 'OM' && (
-            <button 
-              onClick={() => setShowModal(true)}
+            <button
+              onClick={() => navigate('/requests?openNew=1')}
               className="px-6 py-4 bg-red-600 text-white rounded-2xl text-sm font-black uppercase tracking-widest hover:bg-red-700 transition-all shadow-2xl shadow-red-200 flex items-center gap-3 border-2 border-red-500 active:scale-95"
             >
               <FiPlus size={20} className="stroke-[3]" />
@@ -192,7 +342,7 @@ const SiteDashboard = () => {
                     <span className="text-sm font-bold text-slate-400">#REQ-{req.id.toString().padStart(4, '0')}</span>
                   </td>
                   <td className="px-8 py-6">
-                    <p className="text-sm font-bold text-slate-700">{req.Material?.name || 'N/A'}</p>
+                    <p className="text-sm font-bold text-slate-700">{req.items?.[0]?.Material?.name || 'N/A'}</p>
                   </td>
                   <td className="px-8 py-6">
                     <div className="flex items-center gap-2 text-xs font-bold text-slate-600">
@@ -201,7 +351,9 @@ const SiteDashboard = () => {
                     </div>
                   </td>
                   <td className="px-8 py-6">
-                    <span className="text-sm font-bold text-slate-700">{req.quantity} Units</span>
+                    <span className="text-sm font-bold text-slate-700">
+                      {(req.items || []).reduce((sum, item) => sum + (item.quantity || 0), 0)} Units
+                    </span>
                   </td>
                   <td className="px-8 py-6">
                     <span className={clsx(
@@ -247,8 +399,7 @@ const SiteDashboard = () => {
                     onChange={(e) => setNewRequest({...newRequest, siteId: e.target.value})}
                     required
                   >
-                    <option value="">Select Site</option>
-                    {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    {requestableSites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
                 </div>
                 <div>
@@ -264,29 +415,120 @@ const SiteDashboard = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
-                <div className="col-span-2">
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 ml-1">Material</label>
-                  <select 
-                    className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-sundaya-red focus:outline-none transition-all font-bold text-slate-700"
-                    value={newRequest.materialId}
-                    onChange={(e) => setNewRequest({...newRequest, materialId: e.target.value})}
-                    required
-                  >
-                    <option value="">Select Material</option>
-                    {materials.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                  </select>
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 ml-1">Tujuan Pengiriman</label>
+                <input
+                  type="text"
+                  className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-sundaya-red focus:outline-none transition-all font-bold text-slate-700"
+                  placeholder="Contoh: Site Papua"
+                  value={newRequest.destination}
+                  onChange={(e) => setNewRequest({ ...newRequest, destination: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 ml-1">Deadline Kebutuhan</label>
+                <input
+                  type="date"
+                  className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-sundaya-red focus:outline-none transition-all font-bold text-slate-700"
+                  value={newRequest.deadline}
+                  onChange={(e) => setNewRequest({ ...newRequest, deadline: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 ml-1">Urgensi Kebutuhan</label>
+                <div className="flex gap-3">
+                  {['HIGH', 'CRITICAL'].map((level) => (
+                    <button
+                      key={level}
+                      type="button"
+                      onClick={() => setNewRequest({ ...newRequest, urgency: level })}
+                      className={clsx(
+                        "flex-1 py-3 rounded-xl text-xs font-bold uppercase tracking-wider border-2 transition-all",
+                        newRequest.urgency === level
+                          ? (level === 'CRITICAL'
+                            ? "bg-red-50 border-red-500 text-red-600"
+                            : level === 'HIGH'
+                              ? "bg-orange-50 border-orange-500 text-orange-600"
+                              : "bg-blue-50 border-blue-500 text-blue-600")
+                          : "bg-white border-slate-100 text-slate-400 hover:border-slate-300"
+                      )}
+                    >
+                      {level === 'HIGH' ? 'Penting' : 'Sangat Penting'}
+                    </button>
+                  ))}
                 </div>
-                <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 ml-1">Quantity</label>
-                  <input 
-                    type="number" 
-                    min="1"
-                    className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-sundaya-red focus:outline-none transition-all font-bold text-slate-700"
-                    value={newRequest.quantity}
-                    onChange={(e) => setNewRequest({...newRequest, quantity: parseInt(e.target.value)})}
-                    required
-                  />
+              </div>
+
+              <div className="p-4 bg-slate-50 rounded-2xl space-y-4">
+                <div className="flex justify-between items-center">
+                  <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest">Material List</h4>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[10px] font-bold text-slate-400">{newRequest.items.length} Items Added</span>
+                    <button
+                      type="button"
+                      onClick={() => setItemsLocked((prev) => !prev)}
+                      className={clsx(
+                        "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all",
+                        itemsLocked ? "bg-emerald-50 text-emerald-600 border-emerald-200" : "bg-white text-slate-500 border-slate-200 hover:border-slate-300"
+                      )}
+                    >
+                      {itemsLocked ? 'Edit Items' : 'Done'}
+                    </button>
+                  </div>
+                </div>
+
+                {newRequest.items.map((item, idx) => (
+                  <div key={idx} className="flex justify-between items-center bg-white p-3 rounded-xl border border-slate-100">
+                    <div>
+                      <p className="text-xs font-bold text-slate-700">
+                        {item.name || materials.find((m) => m.id.toString() === item.materialId)?.name || '-'}
+                      </p>
+                      <p className="text-[10px] font-bold text-slate-400">Qty: {item.quantity} {item.unit || 'Unit'}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveItem(idx)}
+                      disabled={itemsLocked}
+                      className={clsx("p-2", itemsLocked ? "text-slate-300 cursor-not-allowed" : "text-red-400 hover:text-red-600")}
+                    >
+                      <FiXCircle />
+                    </button>
+                  </div>
+                ))}
+
+                <div className={clsx("grid grid-cols-3 gap-3 pt-2 border-t border-slate-200", itemsLocked && "opacity-50 pointer-events-none")}>
+                  <div className="col-span-2">
+                    <select
+                      className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 focus:outline-none focus:border-sundaya-red"
+                      value={currentItem.materialId}
+                      onChange={(e) => setCurrentItem({ ...currentItem, materialId: e.target.value })}
+                    >
+                      <option value="">Select Material</option>
+                      {materials.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      min="1"
+                      className="w-full px-3 py-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 focus:outline-none focus:border-sundaya-red"
+                      value={currentItem.quantity}
+                      onChange={(e) => {
+                        const parsed = parseInt(e.target.value, 10);
+                        setCurrentItem({ ...currentItem, quantity: Number.isNaN(parsed) ? '' : parsed });
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddItem}
+                      disabled={!currentItem.materialId}
+                      className="bg-sundaya-red text-white p-3 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <FiPlus />
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -302,6 +544,7 @@ const SiteDashboard = () => {
 
               <button 
                 type="submit"
+                disabled={newRequest.items.length === 0}
                 className="w-full py-5 bg-sundaya-red text-white rounded-2xl font-black uppercase tracking-widest shadow-xl shadow-red-100 hover:bg-red-700 active:scale-[0.98] transition-all"
               >
                 Submit Request

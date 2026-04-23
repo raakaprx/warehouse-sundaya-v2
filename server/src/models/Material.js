@@ -16,6 +16,10 @@ const Material = sequelize.define('Material', {
     type: DataTypes.STRING,
     allowNull: true
   },
+  unit: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
   name: {
     type: DataTypes.STRING,
     allowNull: false,
@@ -29,16 +33,10 @@ const Material = sequelize.define('Material', {
   image: {
     type: DataTypes.STRING,
   }
-  ,
-  isDeleted: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: false
-  }
 }, {
   indexes: [
     { fields: ['sku'] },
-    { fields: ['category'] },
-    { fields: ['isDeleted'] }
+    { fields: ['category'] }
   ]
 });
 

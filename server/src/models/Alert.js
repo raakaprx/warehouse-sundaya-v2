@@ -39,6 +39,34 @@ const Alert = sequelize.define('Alert', {
     type: DataTypes.ENUM('NEW', 'READ', 'RESOLVED'),
     defaultValue: 'NEW'
   },
+  acknowledgedBy: {
+    type: DataTypes.INTEGER,
+    allowNull: true
+  },
+  acknowledgedAt: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  resolvedBy: {
+    type: DataTypes.INTEGER,
+    allowNull: true
+  },
+  resolvedAt: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  resolutionNote: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  lastTriggeredAt: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  snoozeUntil: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
   message: {
     type: DataTypes.TEXT,
     allowNull: false
@@ -50,6 +78,7 @@ const Alert = sequelize.define('Alert', {
     { fields: ['status'] },
     { fields: ['priority'] },
     { fields: ['siteId'] },
+    { fields: ['snoozeUntil'] },
     { fields: ['createdAt'] }
   ]
 });

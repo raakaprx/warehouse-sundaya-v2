@@ -24,6 +24,22 @@ const UsedMaterialReport = sequelize.define('UsedMaterialReport', {
     allowNull: false,
     defaultValue: 1
   },
+  unit: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  serialNumbers: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
+  documentNo: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  returnSite: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
   condition: {
     type: DataTypes.ENUM('GOOD', 'REPAIRABLE', 'BROKEN'),
     allowNull: false,

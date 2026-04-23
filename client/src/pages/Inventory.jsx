@@ -76,6 +76,10 @@ const Inventory = () => {
       const res = await axios.get(`http://localhost:5000/api/inventory${siteQuery}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
+      
+      // untuk debug
+      // console.table(res.data.data); 
+
       setItems(res.data.data);
       setLoading(false);
     } catch (err) {
@@ -130,22 +134,39 @@ const Inventory = () => {
       fetchMovements();
     }
   }, [showDetailModal, detailItem]);
-
+ 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('http://localhost:5000/api/inventory/upsert', formData, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+     
+      const data = new FormData();
+      Object.keys(formData).forEach(key => {
+        if (key === 'image' && formData[key] instanceof File) {
+          data.append('image', formData[key]);
+        } else if (key !== 'image' || typeof formData[key] === 'string') {
+          data.append(key, formData[key]);
+        }
+      });
+      if (editingItem) {
+        data.append('id', editingItem.Material?.id || editingItem.id);
+      }
+
+      await axios.post('http://localhost:5000/api/inventory/upsert', data, {
+        headers: { 
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'multipart/form-data'
+        }
       });
       setShowModal(false);
       fetchInventory();
     } catch (err) {
-      alert('Failed to save material');
+      alert(err.response?.data?.message || 'Failed to save material');
     }
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('Delete this material? (Soft Delete)')) {
+    if (!id) return alert('Material ID not found');
+    if (window.confirm('Are you sure you want to delete this material?')) {
       try {
         await axios.delete(`http://localhost:5000/api/inventory/${id}`, {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
@@ -228,7 +249,11 @@ const Inventory = () => {
             <div key={item.id} className="bg-white rounded-[2.5rem] border border-slate-50 shadow-sm overflow-hidden hover:shadow-xl hover:shadow-slate-100 transition-all group">
               <div className="relative h-48 bg-slate-50 flex items-center justify-center overflow-hidden">
                 {item.Material?.image ? (
-                  <img src={item.Material.image} alt={item.Material?.name || item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                  <img 
+                    src={item.Material.image.startsWith('http') ? item.Material.image : `http://localhost:5000${item.Material.image}`} 
+                    alt={item.Material?.name || item.name} 
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
+                  />
                 ) : (
                   <FiPackage size={48} className="text-slate-200" />
                 )}
@@ -247,7 +272,7 @@ const Inventory = () => {
                     <button onClick={() => handleOpenModal(item)} className="p-2.5 bg-white text-slate-600 hover:text-sundaya-red rounded-xl shadow-lg transition-all">
                       <FiEdit3 size={16} />
                     </button>
-                    <button onClick={() => handleDelete(item.id)} className="p-2.5 bg-white text-slate-600 hover:text-red-600 rounded-xl shadow-lg transition-all">
+                    <button onClick={() => handleDelete(item.Material?.id)} className="p-2.5 bg-white text-slate-600 hover:text-red-600 rounded-xl shadow-lg transition-all">
                       <FiTrash2 size={16} />
                     </button>
                   </div>
@@ -311,7 +336,11 @@ const Inventory = () => {
             <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="bg-slate-50 rounded-[2rem] overflow-hidden border border-slate-100">
                 {detailItem.Material?.image ? (
-                  <img src={detailItem.Material.image} alt={detailItem.Material?.name || detailItem.name} className="w-full h-64 object-cover" />
+                  <img 
+                    src={detailItem.Material.image.startsWith('http') ? detailItem.Material.image : `http://localhost:5000${detailItem.Material.image}`} 
+                    alt={detailItem.Material?.name || detailItem.name} 
+                    className="w-full h-64 object-cover" 
+                  />
                 ) : (
                   <div className="h-64 flex items-center justify-center text-slate-200">
                     <FiPackage size={64} />
@@ -494,16 +523,35 @@ const Inventory = () => {
                   ></textarea>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Image URL</label>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Material Photo (JPG/PNG, Max 2MB)</label>
                   <div className="relative">
                     <FiImage className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                     <input 
-                      type="text" 
-                      placeholder="https://..."
-                      className="w-full pl-14 pr-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-sundaya-red focus:outline-none transition-all font-bold text-slate-700"
-                      value={formData.image}
-                      onChange={(e) => setFormData({...formData, image: e.target.value})}
+                      type="file" 
+                      accept="image/png, image/jpeg, image/jpg"
+                      className="w-full pl-14 pr-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-sundaya-red focus:outline-none transition-all font-bold text-slate-700 file:hidden cursor-pointer"
+                      onChange={(e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                          if (file.size > 2 * 1024 * 1024) {
+                            alert('File too large (max 2MB)');
+                            e.target.value = null;
+                            return;
+                          }
+                          setFormData({...formData, image: file});
+                        }
+                      }}
                     />
+                    {formData.image && typeof formData.image === 'string' && (
+                      <p className="mt-2 text-[10px] text-emerald-600 font-bold uppercase tracking-widest ml-1 italic">
+                        ✓ Current photo exists
+                      </p>
+                    )}
+                    {formData.image instanceof File && (
+                      <p className="mt-2 text-[10px] text-blue-600 font-bold uppercase tracking-widest ml-1 italic">
+                        ✓ File selected: {formData.image.name}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="pt-4">

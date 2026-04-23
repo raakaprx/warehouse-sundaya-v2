@@ -7,13 +7,14 @@ import {
 } from 'react-icons/fi';
 import axios from 'axios';
 
-const Sidebar = () => {
+const Sidebar = ({ isOpen = true, onClose }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [imgError, setImgError] = useState(false);
   const [circleError, setCircleError] = useState(false);
   const [notifCount, setNotifCount] = useState(0);
+  const [notificationUnreadCount, setNotificationUnreadCount] = useState(0);
   const [alertCount, setAlertCount] = useState(0);
 
   const handleLogout = () => {
@@ -21,11 +22,23 @@ const Sidebar = () => {
     navigate('/login');
   };
 
+  const handleNavClick = () => {
+    if (window.innerWidth < 768) {
+      onClose?.();
+    }
+  };
+
   const getDashboardPath = () => {
-    if (user?.role === 'NOC' || user?.role === 'PROGRAMMER') return '/admin';
+    if (user?.role === 'NOC') return '/admin';
+    if (user?.role === 'PROGRAMMER') return '/programmer';
     if (user?.role === 'GM') return '/gm';
     if (user?.role === 'OM') return '/om';
     return '/';
+  };
+
+  const getRequestMenuName = () => {
+    if (user?.role === 'NOC' || user?.role === 'GM') return 'Review Request';
+    return 'Material Requests';
   };
 
   const menuItems = [
@@ -33,7 +46,7 @@ const Sidebar = () => {
       title: 'MAIN DASHBOARD',
       items: [
         { 
-          name: user?.role === 'GM' ? 'Executive Monitor' : (user?.role === 'OM' ? 'Site Overview' : 'NOC Control'), 
+          name: user?.role === 'PROGRAMMER' ? 'Programmer Control' : (user?.role === 'GM' ? 'Executive Monitor' : (user?.role === 'OM' ? 'Site Overview' : 'NOC Control')), 
           path: getDashboardPath(), 
           icon: <FiGrid />,
           roles: ['GM', 'NOC', 'OM', 'PROGRAMMER']
@@ -44,15 +57,17 @@ const Sidebar = () => {
       title: 'LOGISTICS & STOCK',
       items: [
         { name: 'Stock Master', path: '/inventory', icon: <FiPackage />, roles: ['NOC', 'OM', 'PROGRAMMER'] },
-        { name: 'Material Requests', path: '/requests', icon: <FiFileText />, showNotif: true, roles: ['GM', 'NOC', 'OM', 'PROGRAMMER'] },
-        { name: 'Used Materials', path: '/used-materials', icon: <FiRefreshCw />, roles: ['GM', 'NOC', 'OM', 'PROGRAMMER'] },
+        { name: getRequestMenuName(), path: '/requests', icon: <FiFileText />, showNotif: true, roles: ['GM', 'NOC', 'OM', 'PROGRAMMER'] },
+        { name: 'Reports', path: '/reports', icon: <FiFileText />, roles: ['GM', 'NOC', 'OM', 'PROGRAMMER'] },
+        { name: 'Recycle Material', path: '/used-materials', icon: <FiRefreshCw />, roles: ['GM', 'NOC', 'OM', 'PROGRAMMER'] },
+        { name: 'History Inventory', path: '/inventory-usage', icon: <FiActivity />, roles: ['GM', 'NOC', 'OM', 'PROGRAMMER'] },
         { name: 'Shipping Control', path: '/shipping', icon: <FiTruck />, roles: ['NOC', 'PROGRAMMER'] }
       ]
     },
     {
       title: 'ADMINISTRATION',
       items: [
-        { name: 'Notifications', path: '/notifications', icon: <FiBell />, showAlert: true, roles: ['GM', 'NOC', 'OM', 'PROGRAMMER'] },
+        { name: 'Notifications', path: '/notifications', icon: <FiBell />, showNotificationBadge: true, roles: ['GM', 'NOC', 'OM', 'PROGRAMMER'] },
         { name: 'System Alerts', path: '/alerts', icon: <FiAlertCircle />, showAlert: true, roles: ['GM', 'NOC', 'PROGRAMMER'] },
         { name: 'Audit Logs', path: '/logs', icon: <FiActivity />, roles: ['GM', 'NOC', 'PROGRAMMER'] },
         { name: 'Settings', path: '/settings', icon: <FiSettings />, roles: ['GM', 'NOC', 'OM', 'PROGRAMMER'] }
@@ -109,22 +124,44 @@ const Sidebar = () => {
   }, [user]);
 
   useEffect(() => {
-    const fetchAlertCount = async () => {
+    const fetchNotificationAndAlertCount = async () => {
       if (!user) return;
       const token = localStorage.getItem('token');
       if (!token) return;
       try {
-        const res = await axios.get('http://localhost:5000/api/notifications/unread-count', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        setAlertCount(res.data?.data?.count || 0);
+        const [notifRes, alertRes] = await Promise.all([
+          axios.get('http://localhost:5000/api/notifications/unread-count', {
+            headers: { Authorization: `Bearer ${token}` }
+          }),
+          ['NOC', 'GM', 'PROGRAMMER'].includes(user.role)
+            ? axios.get('http://localhost:5000/api/inventory/alerts?activeOnly=true', {
+              headers: { Authorization: `Bearer ${token}` }
+            })
+            : Promise.resolve({ data: { data: [] } })
+        ]);
+        setNotificationUnreadCount(notifRes.data?.data?.count || 0);
+        setAlertCount((alertRes.data?.data || []).length);
       } catch (err) {
-        console.error('Failed to fetch notification count', err);
+        console.error('Failed to fetch notification/alert count', err);
       }
     };
-    fetchAlertCount();
-    const intervalId = setInterval(fetchAlertCount, 20000);
-    return () => clearInterval(intervalId);
+    fetchNotificationAndAlertCount();
+    const intervalId = setInterval(fetchNotificationAndAlertCount, 20000);
+    const handleAlertUpdate = () => fetchNotificationAndAlertCount();
+    const handleNotificationUpdate = (event) => {
+      const unreadCount = Number(event?.detail?.unreadCount);
+      if (Number.isFinite(unreadCount)) {
+        setNotificationUnreadCount(Math.max(0, unreadCount));
+      }
+      fetchNotificationAndAlertCount();
+    };
+    window.addEventListener('alerts_updated', handleAlertUpdate);
+    window.addEventListener('notifications_updated', handleNotificationUpdate);
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener('alerts_updated', handleAlertUpdate);
+      window.removeEventListener('notifications_updated', handleNotificationUpdate);
+    };
   }, [user]);
 
   useEffect(() => {
@@ -134,18 +171,18 @@ const Sidebar = () => {
   }, [location.pathname]);
 
   return (
-    <aside className="w-72 bg-white h-screen border-r border-slate-200 flex flex-col fixed left-0 top-0 z-20 shadow-2xl shadow-slate-200/50">
+    <aside className={`w-72 bg-white h-screen border-r border-slate-200 flex flex-col fixed left-0 top-0 z-20 shadow-2xl shadow-slate-200/50 transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
       {/* Brand Logo */}
       <div className="p-8 pb-4">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 flex items-center justify-center bg-white rounded-xl shadow-md border border-slate-100 overflow-hidden group hover:scale-105 transition-transform duration-500">
+          <div className="w-12 h-12 flex items-center justify-center overflow-hidden">
             {circleError ? (
               <div className="text-red-700 font-black text-2xl italic">S</div>
             ) : (
               <img 
                 src="/favicon.ico" 
                 alt="Sundaya Circle" 
-                className="w-10 h-10 object-contain"
+                className="w-12 h-12 object-contain"
                 onError={() => setCircleError(true)}
               />
             )}
@@ -195,6 +232,7 @@ const Sidebar = () => {
                 <NavLink
                   key={item.path}
                   to={item.path}
+                  onClick={handleNavClick}
                   className={({ isActive }) => `
                     group flex items-center justify-between px-4 py-3.5 rounded-2xl transition-all duration-300
                     ${isActive 
@@ -213,6 +251,11 @@ const Sidebar = () => {
                       {item.showNotif && notifCount > 0 && (
                         <span className={`min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-black flex items-center justify-center ${isActive ? 'bg-white/20 text-white' : 'bg-red-100 text-red-700'}`}>
                           {notifCount}
+                        </span>
+                      )}
+                      {item.showNotificationBadge && notificationUnreadCount > 0 && (
+                        <span className={`min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-black flex items-center justify-center ${isActive ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-700'}`}>
+                          {notificationUnreadCount}
                         </span>
                       )}
                       {item.showAlert && alertCount > 0 && (
