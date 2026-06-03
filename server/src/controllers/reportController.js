@@ -1,5 +1,8 @@
-const { Inventory, Material, Site, MaterialRequest, MaterialRequestItem, StockMovement, AuditLog, sequelize } = require('../models');
+const { Inventory, Material, Site, MaterialRequest, MaterialRequestItem, StockMovement, AuditLog, Alert, ExecutiveNote, User, sequelize } = require('../models');
 const { Op } = require('sequelize');
+const { getIO } = require('../utils/socket');
+
+const REJECTED_REQUEST_STATUSES = ['REJECTED_BY_NOC', 'REJECTED_BY_GM'];
 const XLSX = require('xlsx');
 const PDFDocument = require('pdfkit');
 const os = require('os');
@@ -97,19 +100,53 @@ exports.getGlobalStats = async (req, res) => {
     const siteData = await Site.findAll({
       attributes: ['name', [sequelize.fn('SUM', sequelize.col('Inventories.stock')), 'stock']],
       include: [{ model: Inventory, attributes: [] }],
-      group: ['Site.id']
+      group: ['Site.id', 'Site.name']
+    });
+
+    // Added for SiteDashboard compatibility
+    const targetSites = await Site.findAll({ 
+      where: { 
+        name: { 
+          [Op.or]: [
+            { [Op.like]: '%Papua%' },
+            { [Op.like]: '%Maluku%' }
+          ] 
+        } 
+      } 
+    });
+    
+    const distributionData = await Promise.all(targetSites.map(async (site) => {
+      const totalSent = await MaterialRequest.count({ 
+        where: { siteId: site.id, status: { [Op.in]: ['ON_DELIVERY', 'FULFILLED'] } } 
+      });
+      const onDelivery = await MaterialRequest.count({ 
+        where: { siteId: site.id, status: 'ON_DELIVERY' } 
+      });
+      return {
+        site: site.name,
+        totalSent,
+        onDelivery
+      };
+    }));
+
+    const alerts = await Alert.findAll({
+      where: { status: 'NEW' },
+      order: [['createdAt', 'DESC']],
+      limit: 5
     });
 
     const stats = {
       totalSites,
-      totalInventoryValue: 'TBD', // Would need price field in Material
+      totalInventoryValue: 'TBD',
       lowStockAlerts: lowStockCount,
-      weeklyMovement: '+12%', // Mocked for now, would need a movement log
+      weeklyMovement: '+12%',
       siteData: siteData.map(s => ({
         name: s.name,
         stock: parseInt(s.get('stock')) || 0,
-        capacity: 5000 // Mocked capacity
+        capacity: 5000
       })),
+      alerts,
+      distribution: distributionData,
       flowData: [
         { name: 'Mon', in: 400, out: 240 },
         { name: 'Tue', in: 300, out: 139 },
@@ -130,29 +167,215 @@ exports.getGlobalStats = async (req, res) => {
 exports.getExecutiveReport = async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
+    const dateFilter = {};
+    if (startDate && endDate) {
+      dateFilter.createdAt = {
+        [Op.between]: [new Date(startDate), new Date(endDate)]
+      };
+    }
+
+    // 1. Material Request Summary
+    const totalRequests = await MaterialRequest.count({ where: dateFilter });
+    const pendingRequests = await MaterialRequest.count({ 
+      where: { ...dateFilter, status: 'PENDING' } 
+    });
+    const approvedRequests = await MaterialRequest.count({ 
+      where: { ...dateFilter, status: { [Op.in]: ['APPROVED_BY_GM', 'ON_DELIVERY', 'FULFILLED'] } } //, 'APPROVED_READY_TO_SHIP'
+    });
+    const rejectedRequests = await MaterialRequest.count({ 
+      where: { ...dateFilter, status: { [Op.in]: REJECTED_REQUEST_STATUSES } } 
+    });
+    const completedRequests = await MaterialRequest.count({ 
+      where: { ...dateFilter, status: 'FULFILLED' } 
+    });
+
+    // 3. Permintaan per Site (untuk Pie Chart)
+    console.log('Fetching requestsBySite...');
+    const requestsBySiteRaw = await MaterialRequest.findAll({
+      where: dateFilter,
+      attributes: [
+        [sequelize.fn('COUNT', sequelize.col('MaterialRequest.id')), 'count']
+      ],
+      include: [{ 
+        model: Site, 
+        attributes: ['id', 'name'],
+        required: true
+      }],
+      group: ['Site.id', 'Site.name'],
+      raw: true,
+      nest: true
+    });
+
+    const requestsBySite = requestsBySiteRaw.map(r => ({
+      name: r.Site?.name || 'Unknown Site',
+      count: parseInt(r.count) || 0
+    }));
+    console.log('requestsBySite success:', requestsBySite.length);
+
+    // 2. Active Alerts
+    const stockWarning = await Alert.count({ where: { type: 'STOCK_WARNING', status: 'NEW' } });
+    const stockCritical = await Alert.count({ where: { type: 'CRITICAL_STOCK', status: 'NEW' } });
+    const stockOut = await Alert.count({ where: { type: 'OUT_OF_STOCK', status: 'NEW' } });
     
-    const totalRequests = await MaterialRequest.count();
-    const pendingCount = await MaterialRequest.count({ where: { status: 'Pending' } });
+    // 3. Operational Bottlenecks (Simplified logic)
+    // In a real scenario, you'd calculate time differences between AuditLog entries
+    const bottleneckOM = await MaterialRequest.count({ where: { status: 'PENDING' } });
+    const bottleneckNOC = await MaterialRequest.count({ where: { status: 'REVIEWED_BY_NOC' } });
+    const bottleneckGM = await MaterialRequest.count({ where: { status: 'APPROVED_BY_GM' } });
+
+    // 4. Monitoring Distribusi Material (Papua & Maluku)
+    console.log('Fetching distributionData...');
+    const targetSites = await Site.findAll({ 
+      where: { 
+        name: { 
+          [Op.or]: [
+            { [Op.like]: '%Papua%' },
+            { [Op.like]: '%Maluku%' }
+          ] 
+        } 
+      } 
+    });
+    
+    const distributionData = await Promise.all(targetSites.map(async (site) => {
+      const totalSent = await MaterialRequest.count({ 
+        where: { siteId: site.id, status: { [Op.in]: ['ON_DELIVERY', 'FULFILLED'] } } 
+      });
+      const onDelivery = await MaterialRequest.count({ 
+        where: { siteId: site.id, status: 'ON_DELIVERY' } 
+      });
+      return {
+        site: site.name,
+        totalSent,
+        onDelivery
+      };
+    }));
+    console.log('distributionData success:', distributionData.length);
+
+    // 5. Performance Monitoring / KPI (Simplified)
+    const avgApprovalTime = '2.4 days'; // Mocked for now
+    const avgDeliveryTime = '4.1 days'; // Mocked for now
+    const slaFulfillment = '94%'; // Mocked for now
+
+    // 6. Visual Summary Data
+    const monthlyTrend = [
+      { month: 'Jan', requests: 45 },
+      { month: 'Feb', requests: 52 },
+      { month: 'Mar', requests: 48 },
+      { month: 'Apr', requests: 61 },
+    ];
 
     const report = {
-      generatedAt: new Date(),
-      period: { start: startDate, end: endDate },
       summary: {
-        totalRequests,
-        approvedValue: 'Rp 1.2B', // Mocked
-        pendingApproval: pendingCount,
-        topRequestedItems: [
-          { name: 'Solar Home System 50W', count: 25 },
-          { name: 'Battery 12V 100Ah', count: 18 }
-        ]
+        total: totalRequests,
+        pending: pendingRequests,
+        approved: approvedRequests,
+        rejected: rejectedRequests,
+        completed: completedRequests,
+        bySite: requestsBySite
       },
-      sitePerformance: [
-        { site: 'Papua', efficiency: '92%', leadTime: '4 days' },
-        { site: 'Maluku', efficiency: '88%', leadTime: '6 days' }
-      ]
+      alerts: {
+        warning: stockWarning,
+        critical: stockCritical,
+        out: stockOut,
+        overdue: 0,
+        delay: 0
+      },
+      bottlenecks: {
+        om: bottleneckOM,
+        noc: bottleneckNOC,
+        gm: bottleneckGM,
+        delayedShipping: 0,
+        stuckRequests: 0
+      },
+      distribution: distributionData,
+      performance: {
+        avgApprovalTime,
+        avgDeliveryTime,
+        slaFulfillment,
+        monthlyCompleted: completedRequests,
+        delayPercentage: '5%'
+      },
+      charts: {
+        requestsBySite: requestsBySite.map(r => ({ 
+          name: r.name, 
+          value: r.count 
+        })),
+        statusDistribution: [
+          { name: 'Pending', value: pendingRequests },
+          { name: 'Approved', value: approvedRequests },
+          { name: 'Rejected', value: rejectedRequests },
+          { name: 'Completed', value: completedRequests }
+        ],
+        monthlyTrend
+      }
     };
 
     res.json({ success: true, data: report });
+  } catch (error) {
+    console.error('getExecutiveReport error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Executive Notes
+exports.createExecutiveNote = async (req, res) => {
+  try {
+    const { targetRole, message, priority } = req.body;
+    const note = await ExecutiveNote.create({
+      senderId: req.user.id,
+      targetRole: targetRole || 'ALL',
+      message,
+      priority: priority || 'NORMAL'
+    });
+
+    // Emit real-time notification
+    const io = getIO();
+    if (io) {
+      io.emit('new_executive_note', {
+        ...note.toJSON(),
+        sender: { name: req.user.username, role: req.user.role }
+      });
+    }
+
+    res.json({ success: true, data: note });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.getExecutiveNotes = async (req, res) => {
+  try {
+    const { role } = req.user;
+    const where = { isActive: true };
+    
+    // GM can see all notes they sent
+    if (role === 'GM' || role === 'PROGRAMMER') {
+      // Show all active notes
+    } else {
+      // NOC or OM see notes targeted to them or ALL
+      where[Op.or] = [
+        { targetRole: 'ALL' },
+        { targetRole: role }
+      ];
+    }
+
+    const notes = await ExecutiveNote.findAll({
+      where,
+      include: [{ model: User, as: 'sender', attributes: [['username', 'name'], 'role'] }],
+      order: [['createdAt', 'DESC']],
+      limit: 10
+    });
+    res.json({ success: true, data: notes });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.deleteExecutiveNote = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await ExecutiveNote.update({ isActive: false }, { where: { id } });
+    res.json({ success: true, message: 'Note archived' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -166,7 +389,8 @@ const buildStatusLabel = (status) => {
     APPROVED_READY_TO_SHIP: 'Siap Dikirim',
     ON_DELIVERY: 'Dalam Pengiriman',
     FULFILLED: 'Selesai',
-    REJECTED: 'Ditolak',
+    REJECTED_BY_NOC: 'Ditolak oleh NOC',
+    REJECTED_BY_GM: 'Ditolak oleh GM',
     CANCELLED: 'Dibatalkan'
   };
   return map[status] || status.replace(/_/g, ' ');
@@ -180,7 +404,8 @@ const buildActor = (status) => {
     APPROVED_READY_TO_SHIP: 'NOC',
     ON_DELIVERY: 'NOC',
     FULFILLED: 'OM',
-    REJECTED: 'NOC/GM',
+    REJECTED_BY_NOC: 'NOC',
+    REJECTED_BY_GM: 'GM',
     CANCELLED: 'OM'
   };
   return map[status] || 'SYSTEM';
@@ -611,7 +836,7 @@ exports.getRequestStatusPdf = async (req, res) => {
     } else if (statusType === 'PENDING') {
       // Pending / In progress (Exclude fulfilled, rejected, cancelled)
       where.status = {
-        [Op.notIn]: ['FULFILLED', 'REJECTED', 'CANCELLED']
+        [Op.notIn]: ['FULFILLED', ...REJECTED_REQUEST_STATUSES, 'CANCELLED']
       };
     } else {
       return res.status(400).json({ success: false, message: 'Invalid statusType. Use RECEIVED or PENDING' });

@@ -6,6 +6,21 @@ const { sendEmail } = require('../utils/emailService');
 const { runThresholdCheck } = require('../utils/cron');
 
 const ADMIN_EMAIL = 'faerlyroot@gmail.com';
+const REJECTED_STATUSES = ['REJECTED_BY_NOC', 'REJECTED_BY_GM'];
+const getDecisionActor = (fallbackRole) => (fallbackRole === 'GM' ? 'GM' : 'NOC');
+
+const buildRequestInclude = () => ([
+  {
+    model: MaterialRequestItem,
+    as: 'items',
+    include: [{ model: Material, attributes: ['id', 'name', 'sku', 'category', 'itemCode', 'unit'] }]
+  },
+  { model: Site, attributes: ['id', 'name', 'location'] }
+]);
+
+const getRequestWithRelations = (id) => MaterialRequest.findByPk(id, {
+  include: buildRequestInclude()
+});
 
 exports.createRequest = async (req, res) => {
   const t = await sequelize.transaction();
@@ -95,7 +110,9 @@ exports.getRequests = async (req, res) => {
     const { status, startDate, endDate } = req.query;
     const where = {};
     if (status && status !== 'ALL') {
-      where.status = status;
+      where.status = status === 'REJECTED'
+        ? { [Op.in]: REJECTED_STATUSES }
+        : status;
     }
     if (startDate || endDate) {
       where.createdAt = {};
@@ -105,14 +122,7 @@ exports.getRequests = async (req, res) => {
 
     const requests = await MaterialRequest.findAll({
       where,
-      include: [
-        { 
-          model: MaterialRequestItem, 
-          as: 'items',
-          include: [{ model: Material, attributes: ['id', 'name', 'sku', 'category', 'itemCode', 'unit'] }]
-        },
-        { model: Site, attributes: ['id', 'name', 'location'] }
-      ],
+      include: buildRequestInclude(),
       order: [['createdAt', 'DESC']]
     });
     res.json({ success: true, data: requests });
@@ -125,18 +135,23 @@ exports.reviewNOC = async (req, res) => {
   try {
     const { id } = req.params;
     const { approved, reason } = req.body;
+    const decisionActor = getDecisionActor(req.user?.role);
+    const trimmedReason = typeof reason === 'string' ? reason.trim() : '';
     const request = await MaterialRequest.findByPk(id);
 
     if (!request || request.status !== 'PENDING') {
       return res.status(400).json({ success: false, message: 'Invalid request or status' });
     }
 
-    if (!approved && !reason) {
+    if (!approved && !trimmedReason) {
       return res.status(400).json({ success: false, message: 'Alasan penolakan wajib diisi' });
     }
 
-    request.status = approved ? 'REVIEWED_BY_NOC' : 'REJECTED';
-    request.nocDecisionNote = reason || null;
+    request.status = approved ? 'REVIEWED_BY_NOC' : `REJECTED_BY_${decisionActor}`;
+    request.nocDecisionNote = trimmedReason || null;
+    if (!approved) {
+      request.gmDecisionNote = null;
+    }
     await request.save();
 
     // Real-time Notification
@@ -151,7 +166,10 @@ exports.reviewNOC = async (req, res) => {
       io.emit('request_rejected', {
         id: request.id,
         project: request.project,
-        message: `Request ID ${id} rejected by NOC.`
+        status: request.status,
+        rejectedBy: decisionActor,
+        reason: trimmedReason,
+        message: `Request ID ${id} rejected by ${decisionActor}.`
       });
     }
 
@@ -159,7 +177,7 @@ exports.reviewNOC = async (req, res) => {
       userId: req.user.id,
       action: 'NOC_REVIEW',
       module: 'REQUEST',
-      details: `${approved ? 'Approved' : 'Rejected'} request ID ${id}${reason ? ` - ${reason}` : ''}`
+      details: `${approved ? 'Approved by NOC' : `Rejected by ${decisionActor}`} request ID ${id}${trimmedReason ? ` - ${trimmedReason}` : ''}`
     });
 
     await Notification.create({
@@ -167,11 +185,12 @@ exports.reviewNOC = async (req, res) => {
       type: approved ? 'REQUEST_REVIEWED' : 'REQUEST_REJECTED',
       message: approved
         ? `Permintaan ${request.project} telah direview NOC.`
-        : `Permintaan ${request.project} ditolak NOC. ${reason}`,
-      metadata: JSON.stringify({ requestId: request.id })
+        : `Permintaan ${request.project} ditolak ${decisionActor}. ${trimmedReason}`,
+      metadata: JSON.stringify({ requestId: request.id, status: request.status, rejectedBy: decisionActor, rejectReason: trimmedReason || null })
     });
 
-    res.json({ success: true, data: request });
+    const updatedRequest = await getRequestWithRelations(request.id);
+    res.json({ success: true, data: updatedRequest });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -181,18 +200,20 @@ exports.approveGM = async (req, res) => {
   try {
     const { id } = req.params;
     const { approved, reason } = req.body;
+    const decisionActor = getDecisionActor(req.user?.role);
+    const trimmedReason = typeof reason === 'string' ? reason.trim() : '';
     const request = await MaterialRequest.findByPk(id);
 
     if (!request || request.status !== 'REVIEWED_BY_NOC') {
       return res.status(400).json({ success: false, message: 'Invalid request or status' });
     }
 
-    if (!approved && !reason) {
+    if (!approved && !trimmedReason) {
       return res.status(400).json({ success: false, message: 'Alasan penolakan wajib diisi' });
     }
 
-    request.status = approved ? 'APPROVED_BY_GM' : 'REJECTED';
-    request.gmDecisionNote = reason || null;
+    request.status = approved ? 'APPROVED_BY_GM' : `REJECTED_BY_${decisionActor}`;
+    request.gmDecisionNote = trimmedReason || null;
     await request.save();
 
     // Real-time Notification
@@ -209,7 +230,10 @@ exports.approveGM = async (req, res) => {
       io.emit('request_rejected', {
         id: request.id,
         project: request.project,
-        message: `Request ID ${id} rejected by GM.`
+        status: request.status,
+        rejectedBy: decisionActor,
+        reason: trimmedReason,
+        message: `Request ID ${id} rejected by ${decisionActor}.`
       });
     }
 
@@ -217,7 +241,7 @@ exports.approveGM = async (req, res) => {
       userId: req.user.id,
       action: 'GM_APPROVE',
       module: 'REQUEST',
-      details: `${approved ? 'Approved' : 'Rejected'} request ID ${id}${reason ? ` - ${reason}` : ''}`
+      details: `${approved ? 'Approved by GM' : `Rejected by ${decisionActor}`} request ID ${id}${trimmedReason ? ` - ${trimmedReason}` : ''}`
     });
 
     await Notification.create({
@@ -225,11 +249,12 @@ exports.approveGM = async (req, res) => {
       type: approved ? 'REQUEST_APPROVED' : 'REQUEST_REJECTED',
       message: approved
         ? `Permintaan ${request.project} disetujui GM.`
-        : `Permintaan ${request.project} ditolak GM. ${reason}`,
-      metadata: JSON.stringify({ requestId: request.id })
+        : `Permintaan ${request.project} ditolak ${decisionActor}. ${trimmedReason}`,
+      metadata: JSON.stringify({ requestId: request.id, status: request.status, rejectedBy: decisionActor, rejectReason: trimmedReason || null })
     });
 
-    res.json({ success: true, data: request });
+    const updatedRequest = await getRequestWithRelations(request.id);
+    res.json({ success: true, data: updatedRequest });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

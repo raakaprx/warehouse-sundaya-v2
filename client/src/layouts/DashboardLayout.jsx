@@ -33,7 +33,8 @@ const DashboardLayout = () => {
       APPROVED_READY_TO_SHIP: 'Siap Dikirim',
       ON_DELIVERY: 'Dalam Pengiriman',
       FULFILLED: 'Selesai',
-      REJECTED: 'Ditolak',
+      REJECTED_BY_NOC: 'Ditolak oleh NOC',
+      REJECTED_BY_GM: 'Ditolak oleh GM',
       CANCELLED: 'Dibatalkan'
     };
     return labels[status] || status;
@@ -59,7 +60,8 @@ const DashboardLayout = () => {
     { value: 'APPROVED_READY_TO_SHIP', label: 'Siap Dikirim' },
     { value: 'ON_DELIVERY', label: 'Dalam Pengiriman' },
     { value: 'FULFILLED', label: 'Selesai' },
-    { value: 'REJECTED', label: 'Ditolak' },
+    { value: 'REJECTED_BY_NOC', label: 'Ditolak oleh NOC' },
+    { value: 'REJECTED_BY_GM', label: 'Ditolak oleh GM' },
     { value: 'CANCELLED', label: 'Dibatalkan' }
   ];
 

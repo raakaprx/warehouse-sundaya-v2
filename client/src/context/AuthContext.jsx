@@ -35,7 +35,7 @@ export const AuthProvider = ({ children }) => {
     interceptorRef.current = axios.interceptors.response.use(
       (response) => response,
       (error) => {
-        if (error?.response?.status === 401 || error?.response?.status === 403) {
+        if (error?.response?.status === 401) {
           clearAuth(true);
         }
         return Promise.reject(error);

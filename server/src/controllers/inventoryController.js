@@ -1,4 +1,4 @@
-const { Inventory, Material, Site, AuditLog, Alert, StockMovement, User, MaterialRequest, MaterialRequestItem, sequelize } = require('../models');
+const { Inventory, Material, Site, AuditLog, Alert, StockMovement, User, MaterialRequest, MaterialRequestItem, UsedMaterialReport, sequelize } = require('../models');
 const { getIO } = require('../utils/socket');
 const StockService = require('../services/stockService');
 
@@ -58,7 +58,7 @@ exports.getInventory = async (req, res) => {
 exports.getLogs = async (req, res) => {
   try {
     const logs = await AuditLog.findAll({ 
-      include: [{ model: User, attributes: ['name'] }],
+      include: [{ model: User, attributes: [['username', 'name']] }],
       order: [['timestamp', 'DESC']],
       limit: 100 
     });
@@ -166,9 +166,12 @@ exports.deleteMaterial = async (req, res) => {
     const material = await Material.findByPk(id);
     if (!material) return res.status(404).json({ success: false, message: 'Material not found' });
 
-    // Manually delete associated Inventory and Alerts to ensure UI is updated
+    // Manually delete associated records to avoid foreign key constraints
     await Inventory.destroy({ where: { materialId: id } });
     await Alert.destroy({ where: { materialId: id } });
+    await StockMovement.destroy({ where: { materialId: id } });
+    await MaterialRequestItem.destroy({ where: { materialId: id } });
+    await UsedMaterialReport.destroy({ where: { materialId: id } });
     
     await material.destroy();
 
@@ -180,6 +183,33 @@ exports.deleteMaterial = async (req, res) => {
     });
 
     res.json({ success: true, message: 'Material berhasil dihapus' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.deleteInventory = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const inventory = await Inventory.findByPk(id, {
+      include: [Material, Site]
+    });
+    
+    if (!inventory) return res.status(404).json({ success: false, message: 'Data stok tidak ditemukan' });
+
+    const materialName = inventory.Material?.name || 'Unknown';
+    const siteName = inventory.Site?.name || 'Unknown';
+
+    await inventory.destroy();
+
+    await AuditLog.create({
+      userId: req.user.id,
+      action: 'DELETE_STOCK',
+      module: 'INVENTORY',
+      details: `Menghapus stok material ${materialName} di site ${siteName}`
+    });
+
+    res.json({ success: true, message: 'Stok berhasil dihapus dari site' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -250,9 +280,9 @@ exports.getShipments = async (req, res) => {
     const { Op } = require('sequelize');
     const shipments = await MaterialRequest.findAll({
       where: { 
-        status: {
-          [Op.in]: ['ON_DELIVERY', 'FULFILLED', 'APPROVED_READY_TO_SHIP']
-        }
+        status: { 
+          [Op.in]: ['ON_DELIVERY', 'FULFILLED', 'APPROVED_BY_GM'] //, 'APPROVED_READY_TO_SHIP'
+        } 
       },
       include: [
         {
@@ -275,13 +305,19 @@ exports.getShipments = async (req, res) => {
         resi: s.trackingNumber || `REQ-${s.id.toString().padStart(4, '0')}`,
         project: s.project || 'No Project',
         expedition: s.trackingNumber ? (s.trackingNumber.includes(' ') ? s.trackingNumber.split(' ')[0] : 'Ekspedisi') : 'Internal',
+        from: 'Pusat',
         to: s.destination || s.Site?.name || 'Unknown',
         destination: s.destination || s.Site?.name || 'Unknown',
         items: itemsList,
         status: s.status === 'FULFILLED' ? 'DELIVERED' : (s.status === 'ON_DELIVERY' ? 'IN_TRANSIT' : 'PENDING'),
         timestamp: s.updatedAt,
+        eta: s.eta || null,
+        estimatedArrival: s.eta || null,
+        driver: 'Internal',
         shippingPhoto: s.shippingPhoto,
-        receiptPhoto: s.receiptPhoto
+        receiptPhoto: s.receiptPhoto,
+        proofResi: s.shippingPhoto,
+        proofItems: s.receiptPhoto
       };
     });
 

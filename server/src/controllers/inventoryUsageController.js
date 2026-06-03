@@ -1,3 +1,4 @@
+const { Op } = require('sequelize');
 const { sequelize, Inventory, StockMovement, AuditLog, Material, Site, User } = require('../models');
 const { getIO } = require('../utils/socket');
 const { runThresholdCheck } = require('../utils/cron');
@@ -15,6 +16,19 @@ const parseUsageNotes = (notes) => {
   }
 };
 
+const getOmAllowedSiteIds = async (transaction) => {
+  const sites = await Site.findAll({
+    attributes: ['id', 'name'],
+    transaction
+  });
+  return sites
+    .filter((site) => {
+      const lower = String(site.name || '').toLowerCase();
+      return lower.includes('papua') || lower.includes('maluku');
+    })
+    .map((site) => Number(site.id));
+};
+
 exports.createUsage = async (req, res) => {
   const t = await sequelize.transaction();
   try {
@@ -23,9 +37,12 @@ exports.createUsage = async (req, res) => {
     const safeSiteId = parseInt(siteId, 10);
     const safeQuantity = parseInt(quantity, 10);
 
-    if (req.user.role === 'OM' && req.user.siteId && Number(req.user.siteId) !== safeSiteId) {
-      await t.rollback();
-      return res.status(403).json({ success: false, message: 'OM hanya bisa input pemakaian untuk site sendiri' });
+    if (req.user.role === 'OM') {
+      const allowedSiteIds = await getOmAllowedSiteIds(t);
+      if (!allowedSiteIds.includes(safeSiteId)) {
+        await t.rollback();
+        return res.status(400).json({ success: false, message: 'OM hanya bisa input pemakaian untuk site Papua/Maluku' });
+      }
     }
 
     const inventory = await Inventory.findOne({
@@ -86,7 +103,20 @@ exports.getUsageHistory = async (req, res) => {
   try {
     const where = { referenceType: 'USAGE_LOG' };
     if (req.query.siteId) where.siteId = parseInt(req.query.siteId, 10);
-    if (req.user.role === 'OM' && req.user.siteId) where.siteId = req.user.siteId;
+    if (req.user.role === 'OM') {
+      const allowedSiteIds = await getOmAllowedSiteIds();
+      if (allowedSiteIds.length === 0) {
+        return res.status(400).json({ success: false, message: 'Site Papua/Maluku belum tersedia' });
+      }
+
+      if (where.siteId && !allowedSiteIds.includes(where.siteId)) {
+        return res.status(400).json({ success: false, message: 'Filter site tidak valid untuk OM' });
+      }
+
+      where.siteId = where.siteId
+        ? where.siteId
+        : { [Op.in]: allowedSiteIds };
+    }
 
     const rows = await StockMovement.findAll({
       where,

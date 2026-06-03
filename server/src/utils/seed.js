@@ -1,5 +1,5 @@
 const bcrypt = require('bcryptjs');
-const { sequelize, User, Site, Material, Inventory, MaterialRequest, MaterialRequestItem } = require('../models');
+const { sequelize, User, Site, Material, Inventory, MaterialRequest, MaterialRequestItem, AuditLog } = require('../models');
 
 const seed = async () => {
   try {
@@ -15,9 +15,14 @@ const seed = async () => {
     const hashedPw = await bcrypt.hash('admin123', 10);
     const commonEmail = 'faerlyroot@gmail.com';
 
-    await User.create({ username: 'gm_admin', password: hashedPw, role: 'GM', email: commonEmail });
-    await User.create({ username: 'noc', password: hashedPw, role: 'NOC', email: commonEmail });
-    await User.create({ username: 'om', password: hashedPw, role: 'OM', email: commonEmail }); // Single OM user for multi-site
+    const gm = await User.create({ username: 'gm_admin', password: hashedPw, role: 'GM', email: commonEmail });
+    const noc = await User.create({ username: 'noc', password: hashedPw, role: 'NOC', email: commonEmail });
+    
+    // OM users associated with sites
+    const om_papua = await User.create({ username: 'om', password: hashedPw, role: 'OM', email: commonEmail, siteId: papua.id });
+    const om_maluku = await User.create({ username: 'admin_om', password: hashedPw, role: 'OM', email: commonEmail, siteId: maluku.id });
+    const om_admin = await User.create({ username: 'admin OM', password: hashedPw, role: 'OM', email: commonEmail, siteId: maluku.id });
+    
     await User.create({ username: 'progammer', password: hashedPw, role: 'PROGRAMMER', email: commonEmail });
     await User.create({ username: 'programmer', password: hashedPw, role: 'PROGRAMMER', email: commonEmail }); // Alias with common spelling
 
@@ -115,7 +120,7 @@ const seed = async () => {
       { siteId: maluku.id, items: [{ materialId: shs.id, quantity: 20 }], status: 'APPROVED_READY_TO_SHIP', requesterId: 3, project: 'Ambon Street Lights', description: 'Public facility maintenance' },
       { siteId: papua.id, items: [{ materialId: shs.id, quantity: 15 }], status: 'ON_DELIVERY', requesterId: 3, project: 'Merauke Rural Power', description: 'Remote area distribution', trackingNumber: 'TRK-99001122', shippingPhoto: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=400' },
       { siteId: maluku.id, items: [{ materialId: battery.id, quantity: 8 }], status: 'FULFILLED', requesterId: 3, project: 'Ternate Backup System', description: 'Office backup upgrade' },
-      { siteId: papua.id, items: [{ materialId: shs.id, quantity: 3 }], status: 'REJECTED', requesterId: 3, project: 'Test Request', description: 'Invalid project code' },
+      { siteId: papua.id, items: [{ materialId: shs.id, quantity: 3 }], status: 'REJECTED_BY_NOC', requesterId: 3, project: 'Test Request', description: 'Invalid project code', nocDecisionNote: 'Kode proyek tidak valid' },
       { siteId: maluku.id, items: [{ materialId: shs.id, quantity: 12 }], status: 'PENDING', requesterId: 3, project: 'Banda Neira Lights', description: 'Tourism spot electrification' },
       { siteId: papua.id, items: [{ materialId: battery.id, quantity: 25 }], status: 'REVIEWED_BY_NOC', requesterId: 3, project: 'Mining Site A', description: 'Heavy duty battery replacement' },
       { siteId: maluku.id, items: [{ materialId: shs.id, quantity: 7 }], status: 'APPROVED_BY_GM', requesterId: 3, project: 'Village Electrification', description: 'Grant project Maluku' }
@@ -134,7 +139,16 @@ const seed = async () => {
       }
     }
 
-    console.log('Database seeded successfully with 10 dummy requests');
+    // Audit Logs
+    await AuditLog.bulkCreate([
+      { userId: gm.id, action: 'LOGIN', module: 'AUTH', details: 'GM login to dashboard', timestamp: new Date(Date.now() - 3600000) },
+      { userId: noc.id, action: 'CREATE', module: 'INVENTORY', details: 'Added new material: Solar Panel 100W', timestamp: new Date(Date.now() - 7200000) },
+      { userId: om_papua.id, action: 'UPDATE', module: 'REQUEST', details: 'Updated status for Papua Solar Phase 1 to PENDING', timestamp: new Date(Date.now() - 10800000) },
+      { userId: noc.id, action: 'DELETE', module: 'INVENTORY', details: 'Removed obsolete item: Old Battery model', timestamp: new Date(Date.now() - 14400000) },
+      { userId: om_maluku.id, action: 'LOGIN', module: 'AUTH', details: 'OM Maluku login to dashboard', timestamp: new Date(Date.now() - 18000000) }
+    ]);
+
+    console.log('Database seeded successfully with dummy data and audit logs');
   } catch (error) {
     console.error('Error seeding database:', error);
   }

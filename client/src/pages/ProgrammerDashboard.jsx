@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { clsx } from 'clsx';
-import { FiRefreshCw, FiUsers, FiMapPin, FiBell, FiPackage, FiTruck, FiClock, FiCheckCircle, FiSettings, FiActivity, FiAlertTriangle } from 'react-icons/fi';
+import { toast } from 'react-hot-toast';
+import socket from '../utils/socket';
+import { FiRefreshCw, FiUsers, FiMapPin, FiBell, FiPackage, FiTruck, FiClock, FiCheckCircle, FiSettings, FiActivity, FiAlertTriangle, FiMessageSquare } from 'react-icons/fi';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell } from 'recharts';
 
 const STATUS_LABELS = {
@@ -13,7 +15,8 @@ const STATUS_LABELS = {
   APPROVED_READY_TO_SHIP: 'Siap Dikirim',
   ON_DELIVERY: 'Dalam Pengiriman',
   FULFILLED: 'Selesai',
-  REJECTED: 'Ditolak',
+  REJECTED_BY_NOC: 'Ditolak oleh NOC',
+  REJECTED_BY_GM: 'Ditolak oleh GM',
   CANCELLED: 'Dibatalkan'
 };
 
@@ -50,6 +53,7 @@ const ProgrammerDashboard = () => {
   const [unreadNotif, setUnreadNotif] = useState(0);
   const [stats, setStats] = useState(null);
   const [monitoring, setMonitoring] = useState(null);
+  const [executiveNotes, setExecutiveNotes] = useState([]);
   const [monitoringLoading, setMonitoringLoading] = useState(false);
   const navigate = useNavigate();
   const { logout } = useAuth();
@@ -59,14 +63,15 @@ const ProgrammerDashboard = () => {
     try {
       const token = localStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
-      const [reqRes, siteRes, userRes, alertRes, notifRes, statsRes, monitorRes] = await Promise.all([
+      const [reqRes, siteRes, userRes, alertRes, notifRes, statsRes, monitorRes, notesRes] = await Promise.all([
         axios.get('http://localhost:5000/api/requests', { headers }),
         axios.get('http://localhost:5000/api/inventory/sites', { headers }),
         axios.get('http://localhost:5000/api/auth/users', { headers }),
         axios.get('http://localhost:5000/api/inventory/alerts', { headers }),
         axios.get('http://localhost:5000/api/notifications/unread-count', { headers }),
         axios.get('http://localhost:5000/api/reports/stats', { headers }),
-        axios.get('http://localhost:5000/api/reports/monitoring', { headers })
+        axios.get('http://localhost:5000/api/reports/monitoring', { headers }),
+        axios.get('http://localhost:5000/api/reports/notes', { headers })
       ]);
       setRequests(reqRes.data?.data || []);
       setSites(siteRes.data?.data || []);
@@ -75,6 +80,7 @@ const ProgrammerDashboard = () => {
       setUnreadNotif(notifRes.data?.data?.count || 0);
       setStats(statsRes.data?.data || null);
       setMonitoring(monitorRes.data?.data || null);
+      setExecutiveNotes(notesRes.data?.data || []);
     } catch (err) {
       if (err.response?.status === 401 || err.response?.status === 403) {
         logout();
@@ -90,6 +96,19 @@ const ProgrammerDashboard = () => {
 
   useEffect(() => {
     fetchDashboard();
+
+    // Listen for real-time executive notes
+    socket.on('new_executive_note', (note) => {
+      setExecutiveNotes(prev => [note, ...prev].slice(0, 10));
+      toast.success(`Arahan Baru (GM): ${note.message.substring(0, 50)}...`, {
+        icon: '📢',
+        duration: 5000
+      });
+    });
+
+    return () => {
+      socket.off('new_executive_note');
+    };
   }, []);
 
   const requestSummary = useMemo(() => {
@@ -149,6 +168,45 @@ const ProgrammerDashboard = () => {
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8">
+      {/* Executive Notes Banner */}
+      {executiveNotes.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center space-x-2 px-1">
+            <FiMessageSquare className="text-slate-900" />
+            <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest">Arahan Eksekutif (GM)</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {executiveNotes.map((note) => (
+              <div key={note.id} className={clsx(
+                "p-5 rounded-[2rem] border shadow-sm transition-all hover:shadow-md",
+                note.priority === 'URGENT' 
+                  ? "bg-red-50 border-red-100 text-red-900" 
+                  : "bg-white border-slate-100 text-slate-800"
+              )}>
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex items-center space-x-2">
+                    <div className={clsx(
+                      "w-2 h-2 rounded-full",
+                      note.priority === 'URGENT' ? "bg-red-500 animate-pulse" : "bg-slate-900"
+                    )}></div>
+                    <span className="text-[10px] font-black uppercase tracking-widest opacity-70">
+                      {note.priority}
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-bold opacity-50">
+                    {new Date(note.createdAt).toLocaleDateString('id-ID')}
+                  </span>
+                </div>
+                <p className="text-sm font-medium leading-relaxed italic">"{note.message}"</p>
+                <div className="mt-4 pt-3 border-t border-current opacity-10 flex justify-between items-center">
+                  <span className="text-[10px] font-black uppercase">Dari: {note.sender?.name} ({note.sender?.role})</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
         <div>
           <h1 className="text-3xl font-black text-slate-900 tracking-tight">Programmer Control Center</h1>

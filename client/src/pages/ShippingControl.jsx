@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   FiTruck, FiPackage, FiMapPin, FiCalendar, FiSearch, 
-  FiFilter, FiExternalLink, FiCamera, FiCheckCircle 
+  FiFilter, FiExternalLink, FiCamera, FiCheckCircle, FiX
 } from 'react-icons/fi';
 import axios from 'axios';
 import { clsx } from 'clsx';
@@ -10,6 +10,9 @@ const ShippingControl = () => {
   const [shipments, setShipments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [previewPhoto, setPreviewPhoto] = useState(null);
+  const API_BASE_URL = 'http://localhost:5000';
 
   useEffect(() => {
     fetchShipments();
@@ -42,7 +45,27 @@ const ShippingControl = () => {
     );
   };
 
+  const toAbsoluteUrl = (photoPath) => {
+    if (!photoPath) return null;
+    if (/^https?:\/\//i.test(photoPath)) return photoPath;
+    if (photoPath.startsWith('/')) return `${API_BASE_URL}${photoPath}`;
+    return `${API_BASE_URL}/${photoPath}`;
+  };
+
+  const formatDate = (value) => {
+    if (!value) return '-';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '-';
+    return d.toLocaleDateString('id-ID');
+  };
+
+  const openPreview = (url, label) => {
+    if (!url) return;
+    setPreviewPhoto({ url, label });
+  };
+
   const filteredShipments = shipments.filter((ship) => {
+    if (statusFilter !== 'ALL' && ship.status !== statusFilter) return false;
     if (!searchTerm) return true;
     const q = searchTerm.toLowerCase();
     return (
@@ -74,6 +97,28 @@ const ShippingControl = () => {
         <button className="p-4 bg-slate-50 rounded-2xl text-slate-400 hover:text-sundaya-red transition-all">
           <FiFilter size={20} />
         </button>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        {[
+          { key: 'ALL', label: 'Semua' },
+          { key: 'PENDING', label: 'Menunggu Kurir' },
+          { key: 'IN_TRANSIT', label: 'Dalam Perjalanan' },
+          { key: 'DELIVERED', label: 'Sampai Tujuan' }
+        ].map((item) => (
+          <button
+            key={item.key}
+            onClick={() => setStatusFilter(item.key)}
+            className={clsx(
+              'px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all',
+              statusFilter === item.key
+                ? 'bg-slate-900 text-white border-slate-900'
+                : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+            )}
+          >
+            {item.label}
+          </button>
+        ))}
       </div>
 
       {loading ? (
@@ -114,14 +159,14 @@ const ShippingControl = () => {
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Estimasi Tiba</p>
                       <div className="flex items-center gap-2 text-slate-600 font-bold">
                         <FiCalendar className="text-sundaya-red shrink-0" />
-                        <span>{new Date(ship.estimatedArrival).toLocaleDateString('id-ID')}</span>
+                        <span>{formatDate(ship.estimatedArrival || ship.eta)}</span>
                       </div>
                     </div>
                     <div className="space-y-1">
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Driver / PIC</p>
                       <div className="flex items-center gap-2 text-slate-600 font-bold">
                         <FiCheckCircle className="text-emerald-500 shrink-0" />
-                        <span>{ship.driver}</span>
+                        <span>{ship.driver || 'Internal'}</span>
                       </div>
                     </div>
                   </div>
@@ -137,23 +182,37 @@ const ShippingControl = () => {
                     <FiCamera /> Bukti Dokumentasi
                   </p>
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="group relative aspect-square bg-slate-50 rounded-2xl border-2 border-dashed border-slate-100 flex items-center justify-center overflow-hidden hover:border-sundaya-red transition-all cursor-pointer">
-                      {ship.proofResi ? (
-                        <img src={ship.proofResi} alt="Resi" className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
+                    <div
+                      className="group relative aspect-square bg-slate-50 rounded-2xl border-2 border-dashed border-slate-100 flex items-center justify-center overflow-hidden hover:border-sundaya-red transition-all cursor-pointer"
+                      onClick={() => openPreview(toAbsoluteUrl(ship.proofResi || ship.shippingPhoto), 'Bukti Resi')}
+                    >
+                      {toAbsoluteUrl(ship.proofResi || ship.shippingPhoto) ? (
+                        <img
+                          src={toAbsoluteUrl(ship.proofResi || ship.shippingPhoto)}
+                          alt="Resi"
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform"
+                        />
                       ) : (
                         <span className="text-[9px] font-black text-slate-300 uppercase">Resi</span>
                       )}
-                      <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
+                      <div className="absolute inset-0 pointer-events-none bg-slate-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
                         <FiSearch className="text-white" size={24} />
                       </div>
                     </div>
-                    <div className="group relative aspect-square bg-slate-50 rounded-2xl border-2 border-dashed border-slate-100 flex items-center justify-center overflow-hidden hover:border-sundaya-red transition-all cursor-pointer">
-                      {ship.proofItems ? (
-                        <img src={ship.proofItems} alt="Barang" className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
+                    <div
+                      className="group relative aspect-square bg-slate-50 rounded-2xl border-2 border-dashed border-slate-100 flex items-center justify-center overflow-hidden hover:border-sundaya-red transition-all cursor-pointer"
+                      onClick={() => openPreview(toAbsoluteUrl(ship.proofItems || ship.receiptPhoto), 'Bukti Barang Sampai')}
+                    >
+                      {toAbsoluteUrl(ship.proofItems || ship.receiptPhoto) ? (
+                        <img
+                          src={toAbsoluteUrl(ship.proofItems || ship.receiptPhoto)}
+                          alt="Barang"
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform"
+                        />
                       ) : (
                         <span className="text-[9px] font-black text-slate-300 uppercase">Barang</span>
                       )}
-                      <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
+                      <div className="absolute inset-0 pointer-events-none bg-slate-900/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
                         <FiSearch className="text-white" size={24} />
                       </div>
                     </div>
@@ -162,6 +221,31 @@ const ShippingControl = () => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {previewPhoto && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm p-4 flex items-center justify-center"
+          onClick={() => setPreviewPhoto(null)}
+        >
+          <div
+            className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <p className="text-xs font-black uppercase tracking-widest text-slate-500">{previewPhoto.label}</p>
+              <button
+                onClick={() => setPreviewPhoto(null)}
+                className="p-2 rounded-xl hover:bg-slate-100 text-slate-500 transition-all"
+              >
+                <FiX size={18} />
+              </button>
+            </div>
+            <div className="bg-slate-50 p-4">
+              <img src={previewPhoto.url} alt={previewPhoto.label} className="w-full max-h-[70vh] object-contain rounded-2xl" />
+            </div>
+          </div>
         </div>
       )}
     </div>

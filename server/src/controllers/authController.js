@@ -47,10 +47,11 @@ exports.login = async (req, res) => {
         id: user.id, 
         role: user.role, 
         username: user.username, 
-        site: user.Site ? user.Site.name : 'Pusat' 
+        site: user.Site ? user.Site.name : 'Pusat',
+        siteId: user.siteId || null
       }, 
       SECRET_KEY, 
-      { expiresIn: '30m' }
+      { expiresIn: '24h' }
     );
 
     res.json({ 
@@ -60,7 +61,8 @@ exports.login = async (req, res) => {
         id: user.id, 
         username: user.username, 
         role: user.role, 
-        site: user.Site ? user.Site.name : 'Pusat'
+        site: user.Site ? user.Site.name : 'Pusat',
+        siteId: user.siteId || null
       } 
     });
   } catch (error) {

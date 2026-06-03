@@ -10,10 +10,14 @@ const UsedMaterialReport = require('./UsedMaterialReport');
 const StockMovement = require('./StockMovement');
 const Alert = require('./Alert');
 const Notification = require('./Notification');
+const ExecutiveNote = require('./ExecutiveNote');
 
 // Associations
 Site.hasMany(User, { foreignKey: 'siteId' });
 User.belongsTo(Site, { foreignKey: 'siteId' });
+
+User.hasMany(ExecutiveNote, { foreignKey: 'senderId' });
+ExecutiveNote.belongsTo(User, { foreignKey: 'senderId', as: 'sender' });
 
 Material.hasMany(Inventory, { foreignKey: 'materialId', onDelete: 'CASCADE' });
 Inventory.belongsTo(Material, { foreignKey: 'materialId' });
@@ -32,7 +36,7 @@ MaterialRequest.belongsTo(User, { foreignKey: 'requesterId' });
 MaterialRequest.hasMany(MaterialRequestItem, { foreignKey: 'requestId', as: 'items' });
 MaterialRequestItem.belongsTo(MaterialRequest, { foreignKey: 'requestId' });
 
-Material.hasMany(MaterialRequestItem, { foreignKey: 'materialId' });
+Material.hasMany(MaterialRequestItem, { foreignKey: 'materialId', onDelete: 'CASCADE' });
 MaterialRequestItem.belongsTo(Material, { foreignKey: 'materialId' });
 
 User.hasMany(AuditLog, { foreignKey: 'userId' });
@@ -45,10 +49,10 @@ UsedMaterialReport.belongsTo(Site, { foreignKey: 'siteId' });
 User.hasMany(UsedMaterialReport, { foreignKey: 'reporterId' });
 UsedMaterialReport.belongsTo(User, { foreignKey: 'reporterId' });
 
-Material.hasMany(UsedMaterialReport, { foreignKey: 'materialId' });
+Material.hasMany(UsedMaterialReport, { foreignKey: 'materialId', onDelete: 'CASCADE' });
 UsedMaterialReport.belongsTo(Material, { foreignKey: 'materialId' });
 
-Material.hasMany(StockMovement, { foreignKey: 'materialId' });
+Material.hasMany(StockMovement, { foreignKey: 'materialId', onDelete: 'CASCADE' });
 StockMovement.belongsTo(Material, { foreignKey: 'materialId' });
 
 Site.hasMany(StockMovement, { foreignKey: 'siteId' });
@@ -81,7 +85,8 @@ const db = {
   UsedMaterialReport,
   StockMovement,
   Alert,
-  Notification
+  Notification,
+  ExecutiveNote
 };
 
 module.exports = db;

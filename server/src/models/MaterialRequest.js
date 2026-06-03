@@ -36,7 +36,8 @@ const MaterialRequest = sequelize.define('MaterialRequest', {
       'APPROVED_READY_TO_SHIP',
       'ON_DELIVERY',
       'FULFILLED',
-      'REJECTED',
+      'REJECTED_BY_NOC',
+      'REJECTED_BY_GM',
       'CANCELLED'
     ),
     defaultValue: 'PENDING',

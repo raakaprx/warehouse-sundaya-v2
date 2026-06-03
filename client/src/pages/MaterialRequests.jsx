@@ -57,6 +57,12 @@ const MaterialRequests = () => {
   const [reasonValue, setReasonValue] = useState('');
   const [reasonAction, setReasonAction] = useState(null);
   const itemsPerPage = 6;
+  const modalLayers = {
+    base: 'z-50',
+    review: 'z-[60]',
+    confirm: 'z-[80]',
+    reason: 'z-[90]'
+  };
 
   const labels = {
     id: {
@@ -73,6 +79,8 @@ const MaterialRequests = () => {
       statusOnDelivery: 'Dalam Pengiriman',
       statusFulfilled: 'Selesai',
       statusRejected: 'Ditolak',
+      statusRejectedByNoc: 'Ditolak oleh NOC',
+      statusRejectedByGm: 'Ditolak oleh GM',
       statusCancelled: 'Dibatalkan',
       submittedOn: 'Dikirim Pada',
       deadline: 'Batas Waktu',
@@ -124,6 +132,10 @@ const MaterialRequests = () => {
       statusLabel: 'Status',
       requestedMaterials: 'Material Diminta',
       approvalNotes: 'Catatan Persetujuan',
+      reviewHistoryTitle: 'Riwayat Approval / Review',
+      rejectReasonLabel: 'Alasan Reject',
+      reviewedByNoc: 'Direview oleh NOC',
+      approvedByGm: 'Disetujui oleh GM',
       approveNoc: 'Accept',
       rejectNoc: 'Reject',
       approveGm: 'Accept',
@@ -165,6 +177,8 @@ const MaterialRequests = () => {
       statusOnDelivery: 'On Delivery',
       statusFulfilled: 'Fulfilled',
       statusRejected: 'Rejected',
+      statusRejectedByNoc: 'Rejected by NOC',
+      statusRejectedByGm: 'Rejected by GM',
       statusCancelled: 'Cancelled',
       submittedOn: 'Submitted On',
       deadline: 'Deadline',
@@ -216,6 +230,10 @@ const MaterialRequests = () => {
       statusLabel: 'Status',
       requestedMaterials: 'Requested Materials',
       approvalNotes: 'Approval Notes',
+      reviewHistoryTitle: 'Approval / Review History',
+      rejectReasonLabel: 'Reject Reason',
+      reviewedByNoc: 'Reviewed by NOC',
+      approvedByGm: 'Approved by GM',
       approveNoc: 'Approve NOC',
       rejectNoc: 'Reject NOC',
       approveGm: 'Approve GM',
@@ -248,16 +266,18 @@ const MaterialRequests = () => {
   const t = (key) => labels[language]?.[key] || labels.id[key] || key;
   const locale = language === 'en' ? 'en-US' : 'id-ID';
   const isReviewRole = user?.role === 'NOC' || user?.role === 'GM';
+  const rejectedStatuses = ['REJECTED_BY_NOC', 'REJECTED_BY_GM'];
 
   const statusOptions = [
     { value: 'ALL', label: t('allStatus') },
     { value: 'PENDING', label: t('statusPending') },
     { value: 'REVIEWED_BY_NOC', label: t('statusReviewed') },
     { value: 'APPROVED_BY_GM', label: t('statusApproved') },
-    { value: 'APPROVED_READY_TO_SHIP', label: t('statusReadyToShip') },
+    // { value: 'APPROVED_READY_TO_SHIP', label: t('statusReadyToShip') },
     { value: 'ON_DELIVERY', label: t('statusOnDelivery') },
     { value: 'FULFILLED', label: t('statusFulfilled') },
-    { value: 'REJECTED', label: t('statusRejected') },
+    { value: 'REJECTED_BY_NOC', label: t('statusRejectedByNoc') },
+    { value: 'REJECTED_BY_GM', label: t('statusRejectedByGm') },
     { value: 'CANCELLED', label: t('statusCancelled') }
   ];
 
@@ -378,12 +398,22 @@ const MaterialRequests = () => {
         params,
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
-      setRequests(res.data.data);
+      const data = res.data?.data || [];
+      setRequests(data);
       setLoading(false);
+      return data;
     } catch (err) {
       console.error('Failed to fetch requests', err);
       setLoading(false);
+      return [];
     }
+  };
+
+  const syncRequestState = (updatedRequest) => {
+    if (!updatedRequest?.id) return;
+    setRequests((prev) => prev.map((req) => (req.id === updatedRequest.id ? updatedRequest : req)));
+    setReviewRequest((prev) => (prev?.id === updatedRequest.id ? updatedRequest : prev));
+    setSelectedRequest((prev) => (prev?.id === updatedRequest.id ? updatedRequest : prev));
   };
 
   const handleAddItem = () => {
@@ -447,11 +477,23 @@ const MaterialRequests = () => {
 
   const handleAction = async (id, actionUrl, payload = {}) => {
     try {
-      await axios.patch(`http://localhost:5000/api/requests/${id}/${actionUrl}`, payload, {
+      const res = await axios.patch(`http://localhost:5000/api/requests/${id}/${actionUrl}`, payload, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
-      fetchRequests();
-      setShowReviewModal(false);
+      const updatedRequest = res.data?.data;
+      if (updatedRequest) {
+        syncRequestState(updatedRequest);
+      }
+      const refreshedRequests = await fetchRequests();
+      const latestRequest = Array.isArray(refreshedRequests)
+        ? refreshedRequests.find((req) => req.id === updatedRequest?.id)
+        : null;
+      if (latestRequest) {
+        syncRequestState(latestRequest);
+      }
+      window.dispatchEvent(new Event('mr_flow_update'));
+      setShowReasonModal(false);
+      setReasonValue('');
       setShowConfirmModal(false);
     } catch (err) {
       alert(err.response?.data?.message || 'Gagal memproses permintaan');
@@ -477,15 +519,13 @@ const MaterialRequests = () => {
     setShowReasonModal(true);
   };
 
-  const handleReasonSubmit = (e) => {
+  const handleReasonSubmit = async (e) => {
     e.preventDefault();
     const trimmed = reasonValue.trim();
     if (!trimmed) return;
     if (reasonAction) {
-      reasonAction(trimmed);
+      await reasonAction(trimmed);
     }
-    setShowReasonModal(false);
-    setReasonValue('');
   };
 
   const handleShip = async (e) => {
@@ -541,15 +581,40 @@ const MaterialRequests = () => {
     return `http://${host}:5000${cleanPath}`;
   };
 
+  const getRejectReason = (request) => {
+    if (request?.status === 'REJECTED_BY_NOC') return request.nocDecisionNote;
+    if (request?.status === 'REJECTED_BY_GM') return request.gmDecisionNote;
+    return '';
+  };
+
+  const getReviewHistory = (request) => {
+    const entries = [];
+
+    if (request?.status !== 'PENDING') {
+      const nocStatus = request?.status === 'REJECTED_BY_NOC' ? t('statusRejectedByNoc') : t('reviewedByNoc');
+      const nocNote = request?.nocDecisionNote || (request?.status !== 'REJECTED_BY_NOC' ? 'Request diteruskan ke GM untuk approval.' : '');
+      entries.push({ actor: 'NOC', status: nocStatus, note: nocNote });
+    }
+
+    if (['APPROVED_BY_GM', 'ON_DELIVERY', 'FULFILLED', 'REJECTED_BY_GM'].includes(request?.status)) {
+      const gmStatus = request?.status === 'REJECTED_BY_GM' ? t('statusRejectedByGm') : t('approvedByGm');
+      const gmNote = request?.gmDecisionNote || (request?.status !== 'REJECTED_BY_GM' ? 'Request disetujui untuk proses pengiriman.' : '');
+      entries.push({ actor: 'GM', status: gmStatus, note: gmNote });
+    }
+
+    return entries;
+  };
+
   const getStatusBadge = (status) => {
     const configs = {
       'PENDING': { label: t('statusPending'), color: 'bg-blue-50 text-blue-600 border-blue-100', icon: FiShield },
       'REVIEWED_BY_NOC': { label: t('statusReviewed'), color: 'bg-amber-50 text-amber-600 border-amber-100', icon: FiClock },
       'APPROVED_BY_GM': { label: t('statusApproved'), color: 'bg-emerald-50 text-emerald-600 border-emerald-100', icon: FiCheckCircle },
-      'APPROVED_READY_TO_SHIP': { label: t('statusReadyToShip'), color: 'bg-indigo-50 text-indigo-600 border-indigo-100', icon: FiTruck },
+      // 'APPROVED_READY_TO_SHIP': { label: t('statusReadyToShip'), color: 'bg-indigo-50 text-indigo-600 border-indigo-100', icon: FiTruck },
       'ON_DELIVERY': { label: t('statusOnDelivery'), color: 'bg-purple-50 text-purple-600 border-purple-100', icon: FiTruck },
       'FULFILLED': { label: t('statusFulfilled'), color: 'bg-slate-50 text-slate-600 border-slate-100', icon: FiCheckCircle },
-      'REJECTED': { label: t('statusRejected'), color: 'bg-red-50 text-red-600 border-red-100', icon: FiXCircle },
+      'REJECTED_BY_NOC': { label: t('statusRejectedByNoc'), color: 'bg-red-50 text-red-600 border-red-100', icon: FiXCircle },
+      'REJECTED_BY_GM': { label: t('statusRejectedByGm'), color: 'bg-rose-50 text-rose-600 border-rose-100', icon: FiXCircle },
       'CANCELLED': { label: t('statusCancelled'), color: 'bg-slate-200 text-slate-600 border-slate-300', icon: FiXCircle },
     };
     const config = configs[status] || configs['PENDING'];
@@ -571,7 +636,7 @@ const MaterialRequests = () => {
   };
 
   const getSlaBadge = (req) => {
-    const closedStatuses = ['FULFILLED', 'REJECTED', 'CANCELLED'];
+    const closedStatuses = ['FULFILLED', ...rejectedStatuses, 'CANCELLED'];
     if (closedStatuses.includes(req.status)) return null;
     const now = Date.now();
     const createdAt = new Date(req.createdAt).getTime();
@@ -692,6 +757,7 @@ const MaterialRequests = () => {
           ) : paginatedRequests.map((req) => {
             const totalQty = (req.items || []).reduce((sum, item) => sum + (item.quantity || 0), 0);
             const slaBadge = getSlaBadge(req);
+            const rejectReason = getRejectReason(req);
             return (
             <div key={req.id} className="bg-white rounded-[2rem] border border-slate-50 shadow-sm overflow-hidden hover:shadow-xl hover:shadow-slate-100 transition-all group">
               <div className="p-5 sm:p-6 lg:p-8">
@@ -773,6 +839,12 @@ const MaterialRequests = () => {
                   <div className="mt-4 p-4 bg-slate-50 rounded-2xl">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('descriptionNotes')}</p>
                     <p className="text-sm text-slate-600 italic">"{req.description}"</p>
+                  </div>
+                )}
+                {rejectReason && (
+                  <div className="mt-4 p-4 bg-red-50 rounded-2xl border border-red-100">
+                    <p className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-1">{t('rejectReasonLabel')}</p>
+                    <p className="text-sm font-bold text-red-700">{rejectReason}</p>
                   </div>
                 )}
                 {(user?.role === 'NOC' || user?.role === 'GM') && (
@@ -948,7 +1020,7 @@ const MaterialRequests = () => {
 
       {/* Ship Modal */}
       {showShipModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+        <div className={clsx("fixed inset-0 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm", modalLayers.base)}>
           <div className="bg-white rounded-[2.5rem] w-full max-w-lg shadow-2xl overflow-hidden animate-enter">
             <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
               <div>
@@ -1037,7 +1109,7 @@ const MaterialRequests = () => {
       )}
 
       {showReceiveModal && selectedRequest && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+        <div className={clsx("fixed inset-0 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm", modalLayers.base)}>
           <div className="bg-white rounded-[2.5rem] w-full max-w-lg shadow-2xl overflow-hidden animate-enter">
             <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
               <div>
@@ -1094,8 +1166,8 @@ const MaterialRequests = () => {
       )}
 
       {showReasonModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-enter">
+        <div className={clsx("fixed inset-0 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm", modalLayers.reason)}>
+          <div className="relative z-[91] bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-enter">
             <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
               <div>
                 <h2 className="text-xl font-black text-slate-800 tracking-tight">{reasonTitle}</h2>
@@ -1134,8 +1206,8 @@ const MaterialRequests = () => {
       )}
 
       {showConfirmModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-enter">
+        <div className={clsx("fixed inset-0 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm", modalLayers.confirm)}>
+          <div className="relative z-[81] bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-enter">
             <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
               <div>
                 <h2 className="text-xl font-black text-slate-800 tracking-tight">{t('confirmActionTitle')}</h2>
@@ -1169,7 +1241,11 @@ const MaterialRequests = () => {
       )}
 
       {showReviewModal && reviewRequest && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+        <div className={clsx(
+          "fixed inset-0 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm",
+          modalLayers.review,
+          (showReasonModal || showConfirmModal) && "pointer-events-none"
+        )}>
           <div className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-enter">
             <div className="p-8 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
               <div>
@@ -1253,6 +1329,13 @@ const MaterialRequests = () => {
                 </div>
               )}
 
+              {getRejectReason(reviewRequest) && (
+                <div className="bg-red-50 rounded-2xl border border-red-100 p-6">
+                  <p className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-2">{t('rejectReasonLabel')}</p>
+                  <p className="text-sm font-bold text-red-700">{getRejectReason(reviewRequest)}</p>
+                </div>
+              )}
+
               {(reviewRequest.shippingPhoto || reviewRequest.receiptPhoto) && (
                 <div className="grid grid-cols-2 gap-4">
                   {reviewRequest.shippingPhoto && (
@@ -1284,15 +1367,22 @@ const MaterialRequests = () => {
                 </div>
               )}
 
-              {(reviewRequest.nocDecisionNote || reviewRequest.gmDecisionNote) && (
+              {getReviewHistory(reviewRequest).length > 0 && (
                 <div className="bg-white border border-slate-100 rounded-2xl p-6">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{t('approvalNotes')}</p>
-                  {reviewRequest.nocDecisionNote && (
-                    <p className="text-sm font-bold text-slate-700">NOC: {reviewRequest.nocDecisionNote}</p>
-                  )}
-                  {reviewRequest.gmDecisionNote && (
-                    <p className="text-sm font-bold text-slate-700">GM: {reviewRequest.gmDecisionNote}</p>
-                  )}
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">{t('reviewHistoryTitle')}</p>
+                  <div className="space-y-3">
+                    {getReviewHistory(reviewRequest).map((entry) => (
+                      <div key={`${entry.actor}-${entry.status}`} className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-xs font-black text-slate-700">{entry.actor}</p>
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{entry.status}</p>
+                        </div>
+                        {entry.note && (
+                          <p className="mt-2 text-sm font-bold text-slate-600">{entry.note}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
               {(user?.role === 'NOC' && reviewRequest.status === 'PENDING') && (
@@ -1345,7 +1435,7 @@ const MaterialRequests = () => {
 
       {/* Modal Buat Request */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+        <div className={clsx("fixed inset-0 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm", modalLayers.base)}>
           <div className="bg-white w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-[2.5rem] shadow-2xl animate-in fade-in zoom-in duration-300">
             <div className="p-8 border-b border-slate-50 flex justify-between items-center">
               <div>

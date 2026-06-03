@@ -6,6 +6,7 @@ import Login from './pages/Login';
 import SuperDashboard from './pages/SuperDashboard';
 import SiteDashboard from './pages/SiteDashboard';
 import ProgrammerDashboard from './pages/ProgrammerDashboard';
+import ExecutiveDashboard from './pages/ExecutiveDashboard';
 import Inventory from './pages/Inventory';
 import MaterialRequests from './pages/MaterialRequests';
 import ShippingControl from './pages/ShippingControl';
@@ -49,7 +50,6 @@ function App() {
       <Route path="/login" element={<Login />} />
       
       <Route element={<ProtectedRoute><DashboardLayout /></ProtectedRoute>}>
-        
         {/* Dashboards */}
         <Route path="/admin" element={
           <ProtectedRoute allowedRoles={['NOC']}><SuperDashboard /></ProtectedRoute>
@@ -58,7 +58,7 @@ function App() {
           <ProtectedRoute allowedRoles={['PROGRAMMER']}><ProgrammerDashboard /></ProtectedRoute>
         } />
         <Route path="/gm" element={
-          <ProtectedRoute allowedRoles={['GM']}><SuperDashboard /></ProtectedRoute>
+          <ProtectedRoute allowedRoles={['GM']}><ExecutiveDashboard /></ProtectedRoute>
         } />
         <Route path="/om" element={
           <ProtectedRoute allowedRoles={['OM']}><SiteDashboard /></ProtectedRoute>

@@ -164,16 +164,37 @@ const Inventory = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!id) return alert('Material ID not found');
-    if (window.confirm('Are you sure you want to delete this material?')) {
+  const handleDelete = async (item) => {
+    if (!item?.Material?.id) return alert('Material ID not found');
+    
+    const choice = window.confirm(
+      `Apa yang ingin Anda lakukan untuk "${item.Material.name}"?\n\n` +
+      `OK: Hapus STOK hanya di site ${item.Site?.name || 'ini'}\n` +
+      `Cancel: Batal`
+    );
+
+    if (choice) {
       try {
-        await axios.delete(`http://localhost:5000/api/inventory/${id}`, {
+        await axios.delete(`http://localhost:5000/api/inventory/stock/${item.id}`, {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
         });
         fetchInventory();
       } catch (err) {
-        alert('Failed to delete material');
+        alert(err.response?.data?.message || 'Gagal menghapus stok');
+      }
+    }
+  };
+
+  const handleDeleteMaterial = async (materialId) => {
+    if (!materialId) return;
+    if (window.confirm('PERINGATAN: Ini akan menghapus material ini dari SELURUH katalog dan SEMUA site. Lanjutkan?')) {
+      try {
+        await axios.delete(`http://localhost:5000/api/inventory/${materialId}`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        });
+        fetchInventory();
+      } catch (err) {
+        alert(err.response?.data?.message || 'Gagal menghapus material dari katalog');
       }
     }
   };
@@ -272,7 +293,7 @@ const Inventory = () => {
                     <button onClick={() => handleOpenModal(item)} className="p-2.5 bg-white text-slate-600 hover:text-sundaya-red rounded-xl shadow-lg transition-all">
                       <FiEdit3 size={16} />
                     </button>
-                    <button onClick={() => handleDelete(item.Material?.id)} className="p-2.5 bg-white text-slate-600 hover:text-red-600 rounded-xl shadow-lg transition-all">
+                    <button onClick={() => handleDelete(item)} className="p-2.5 bg-white text-slate-600 hover:text-red-600 rounded-xl shadow-lg transition-all">
                       <FiTrash2 size={16} />
                     </button>
                   </div>

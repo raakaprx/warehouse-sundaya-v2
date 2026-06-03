@@ -89,9 +89,9 @@ const AuditLogs = () => {
                   <td className="px-8 py-6">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 bg-sundaya-red/10 rounded-full flex items-center justify-center text-sundaya-red font-black text-[10px]">
-                        {log.user.charAt(0)}
+                        {log.user ? log.user.charAt(0) : '?'}
                       </div>
-                      <span className="text-sm font-bold text-slate-700">{log.user}</span>
+                      <span className="text-sm font-bold text-slate-700">{log.user || 'Unknown'}</span>
                     </div>
                   </td>
                   <td className="px-8 py-6">

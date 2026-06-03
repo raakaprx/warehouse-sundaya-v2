@@ -56,7 +56,7 @@ const Sidebar = ({ isOpen = true, onClose }) => {
     {
       title: 'LOGISTICS & STOCK',
       items: [
-        { name: 'Stock Master', path: '/inventory', icon: <FiPackage />, roles: ['NOC', 'OM', 'PROGRAMMER'] },
+        { name: 'Stock Master', path: '/inventory', icon: <FiPackage />, roles: ['GM', 'NOC', 'OM', 'PROGRAMMER'] },
         { name: getRequestMenuName(), path: '/requests', icon: <FiFileText />, showNotif: true, roles: ['GM', 'NOC', 'OM', 'PROGRAMMER'] },
         { name: 'Reports', path: '/reports', icon: <FiFileText />, roles: ['GM', 'NOC', 'OM', 'PROGRAMMER'] },
         { name: 'Recycle Material', path: '/used-materials', icon: <FiRefreshCw />, roles: ['GM', 'NOC', 'OM', 'PROGRAMMER'] },

@@ -1,13 +1,39 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  FiPackage, FiTruck, FiUsers, FiClock, FiActivity, FiArrowUpRight, FiArrowDownLeft,
-  FiPlus, FiXCircle, FiMapPin, FiCheckCircle, FiShield
-} from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { clsx } from 'clsx';
 import { toast } from 'react-hot-toast';
+import socket from '../utils/socket';
+import { 
+  FiPackage, FiTruck, FiUsers, FiClock, FiActivity, FiArrowUpRight, FiArrowDownLeft,
+  FiPlus, FiXCircle, FiMapPin, FiCheckCircle, FiShield, FiMessageSquare, FiAlertCircle, FiChevronRight
+} from 'react-icons/fi';
+import { 
+  PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid
+} from 'recharts';
+
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
+
+const StatCard = ({ title, value, icon: Icon, color, trend }) => (
+  <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 flex flex-col justify-between group hover:border-sundaya-red/30 transition-all duration-300">
+    <div className="flex items-center justify-between mb-4">
+      <div className={clsx("p-3 rounded-2xl transition-transform group-hover:scale-110 duration-300", color)}>
+        <Icon size={24} className="text-white" />
+      </div>
+      {trend && (
+        <span className="text-[10px] font-black px-2 py-1 rounded-full bg-emerald-50 text-emerald-600">
+          {trend}
+        </span>
+      )}
+    </div>
+    <div>
+      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{title}</p>
+      <h3 className="text-3xl font-black text-slate-800">{value}</h3>
+    </div>
+  </div>
+);
 
 const SiteDashboard = () => {
   const { user } = useAuth();
@@ -17,6 +43,8 @@ const SiteDashboard = () => {
   const [requests, setRequests] = useState([]);
   const [materials, setMaterials] = useState([]);
   const [sites, setSites] = useState([]);
+  const [executiveNotes, setExecutiveNotes] = useState([]);
+  const [chartData, setChartData] = useState([]);
   const [newRequest, setNewRequest] = useState({
     siteId: '',
     items: [],
@@ -35,10 +63,28 @@ const SiteDashboard = () => {
     pendingShipment: 0,
     completed: 0
   });
+  const [alerts, setAlerts] = useState([]);
+  const [distributionData, setDistributionData] = useState([]);
 
   useEffect(() => {
     fetchData();
-  }, []);
+
+    // Listen for real-time executive notes
+    socket.on('new_executive_note', (note) => {
+      // Check if note is targeted to this user's role or ALL
+      if (note.targetRole === 'ALL' || note.targetRole === user?.role) {
+        setExecutiveNotes(prev => [note, ...prev].slice(0, 10));
+        toast.success(`Arahan Baru dari GM: ${note.message.substring(0, 50)}...`, {
+          icon: '📢',
+          duration: 5000
+        });
+      }
+    });
+
+    return () => {
+      socket.off('new_executive_note');
+    };
+  }, [user?.role]);
 
   useEffect(() => {
     if (!showModal || user?.role !== 'OM' || newRequest.siteId) return;
@@ -57,23 +103,39 @@ const SiteDashboard = () => {
       const token = localStorage.getItem('token');
       const headers = { Authorization: `Bearer ${token}` };
 
-      const [reqRes, matRes, siteRes] = await Promise.all([
+      const [reqRes, matRes, siteRes, notesRes, statsRes] = await Promise.all([
         axios.get('http://localhost:5000/api/requests', { headers }),
         axios.get('http://localhost:5000/api/inventory/materials', { headers }),
-        axios.get('http://localhost:5000/api/inventory/sites', { headers })
+        axios.get('http://localhost:5000/api/inventory/sites', { headers }),
+        axios.get('http://localhost:5000/api/reports/notes', { headers }),
+        axios.get('http://localhost:5000/api/reports/stats', { headers })
       ]);
 
       const allRequests = reqRes.data.data;
-      setRequests(allRequests.slice(0, 5)); // Just recent 5
+      setRequests(allRequests.slice(0, 5));
       setMaterials(matRes.data.data);
       setSites(siteRes.data.data);
+      setExecutiveNotes(notesRes.data.data || []);
+      
+      const globalStats = statsRes.data.data;
+      setAlerts(globalStats.alerts || []);
+      setDistributionData(globalStats.distribution || []);
 
-      // Calculate stats
       setStats({
         totalRequests: allRequests.length,
-        pendingShipment: allRequests.filter(r => r.status === 'APPROVED_READY_TO_SHIP' || r.status === 'ON_DELIVERY').length,
+        pendingShipment: allRequests.filter(r => /* r.status === 'APPROVED_READY_TO_SHIP' || */ r.status === 'ON_DELIVERY').length,
         completed: allRequests.filter(r => r.status === 'FULFILLED').length
       });
+
+      // Status Distribution Chart
+      const dist = allRequests.reduce((acc, r) => {
+        acc[r.status] = (acc[r.status] || 0) + 1;
+        return acc;
+      }, {});
+      setChartData(Object.keys(dist).map(status => ({
+        name: status.replace(/_/g, ' '),
+        value: dist[status]
+      })));
 
       setLoading(false);
     } catch (err) {
@@ -131,7 +193,9 @@ const SiteDashboard = () => {
   const getStatusStyle = (status) => {
     switch (status) {
       case 'FULFILLED': return 'bg-emerald-50 text-emerald-600 border-emerald-100';
-      case 'REJECTED': return 'bg-red-50 text-red-600 border-red-100';
+      case 'REJECTED_BY_NOC':
+      case 'REJECTED_BY_GM':
+        return 'bg-red-50 text-red-600 border-red-100';
       case 'PENDING': return 'bg-blue-50 text-blue-600 border-blue-100';
       default: return 'bg-amber-50 text-amber-600 border-amber-100';
     }
@@ -238,45 +302,29 @@ const SiteDashboard = () => {
     : sites;
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8">
+    <div className="p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight capitalize">
-            {user?.site || 'Global'} Dashboard
+          <h1 className="text-3xl font-black text-slate-900 tracking-tight">
+            {user?.role === 'NOC' ? 'NOC Operations Monitor' : `${user?.site || 'Global'} Dashboard`}
           </h1>
-          <p className="text-slate-500 mt-1 font-medium italic">Logistics operations monitoring for {user?.site || 'Headquarters'}</p>
+          <p className="text-slate-500 font-medium">Monitoring real-time request dan inventaris.</p>
         </div>
-        <div className="flex gap-3">
-          <div className="flex flex-col gap-2">
-            <button
-                onClick={handleDownloadReport}
-                className="px-5 py-3 bg-white border border-slate-100 rounded-2xl text-xs font-black uppercase tracking-widest text-slate-500 hover:text-sundaya-red transition-all shadow-sm flex items-center gap-2 w-full justify-center"
-              >
-                Download History
-              </button>
-            <div className="flex gap-2">
-              <button
-                onClick={() => handleDownloadStatusReport('RECEIVED')}
-                className="px-3 py-2 bg-emerald-50 border border-emerald-100 rounded-xl text-[9px] font-black uppercase tracking-widest text-emerald-600 hover:bg-emerald-100 transition-all flex items-center gap-1"
-              >
-                <FiCheckCircle size={12} /> Diterima
-              </button>
-              <button
-                onClick={() => handleDownloadStatusReport('PENDING')}
-                className="px-3 py-2 bg-blue-50 border border-blue-100 rounded-xl text-[9px] font-black uppercase tracking-widest text-blue-600 hover:bg-blue-100 transition-all flex items-center gap-1"
-              >
-                <FiTruck size={12} /> Belum Diterima
-              </button>
-            </div>
-          </div>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={fetchData}
+            className="p-3 rounded-2xl border border-slate-200 text-slate-600 hover:bg-white transition-all shadow-sm"
+          >
+            <FiActivity size={20} />
+          </button>
           {user?.role === 'OM' && (
-            <button
+            <button 
               onClick={() => navigate('/requests?openNew=1')}
-              className="px-6 py-4 bg-red-600 text-white rounded-2xl text-sm font-black uppercase tracking-widest hover:bg-red-700 transition-all shadow-2xl shadow-red-200 flex items-center gap-3 border-2 border-red-500 active:scale-95"
+              className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg shadow-slate-200"
             >
-              <FiPlus size={20} className="stroke-[3]" />
-              New Material Request
+              <FiPlus size={18} />
+              <span>Request Baru</span>
             </button>
           )}
         </div>
@@ -284,21 +332,167 @@ const SiteDashboard = () => {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {[
-          { label: 'Total Requests', value: stats.totalRequests, icon: <FiPackage />, color: 'text-sundaya-red', bg: 'bg-red-50' },
-          { label: 'In Progress', value: stats.pendingShipment, icon: <FiTruck />, color: 'text-blue-600', bg: 'bg-blue-50' },
-          { label: 'Completed', value: stats.completed, icon: <FiCheckCircle />, color: 'text-emerald-600', bg: 'bg-emerald-50' }
-        ].map((stat, i) => (
-          <div key={i} className="bg-white p-8 rounded-[2.5rem] border border-slate-50 shadow-sm flex items-center justify-between group hover:shadow-md transition-all">
+        <StatCard 
+          title="Total Requests" 
+          value={stats.totalRequests} 
+          icon={FiActivity} 
+          color="bg-blue-500"
+        />
+        <StatCard 
+          title="Pending Shipment" 
+          value={stats.pendingShipment} 
+          icon={FiTruck} 
+          color="bg-amber-500"
+          trend={`${Math.round((stats.pendingShipment / (stats.totalRequests || 1)) * 100)}%`}
+        />
+        <StatCard 
+          title="Completed" 
+          value={stats.completed} 
+          icon={FiCheckCircle} 
+          color="bg-emerald-500"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Status Distribution Chart */}
+        <div className="lg:col-span-2 bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
+          <div className="flex items-center justify-between mb-8">
             <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{stat.label}</p>
-              <h3 className="text-3xl font-black text-slate-800">{stat.value}</h3>
+              <h3 className="text-xl font-black text-slate-800">Distribusi Status</h3>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Status request saat ini</p>
             </div>
-            <div className={clsx("w-14 h-14 rounded-2xl flex items-center justify-center text-2xl transition-transform group-hover:scale-110", stat.bg, stat.color)}>
-              {stat.icon}
+            <div className="p-2 bg-slate-50 rounded-xl">
+              <FiShield className="text-slate-400" size={20} />
             </div>
           </div>
-        ))}
+          <div className="h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+                <XAxis 
+                  dataKey="name" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fill: '#64748b', fontSize: 10, fontWeight: 700 }} 
+                />
+                <YAxis 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fill: '#64748b', fontSize: 10, fontWeight: 700 }} 
+                />
+                <Tooltip 
+                  contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                />
+                <Bar dataKey="value" fill="#0f172a" radius={[10, 10, 0, 0]} barSize={40} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Quick Actions / Alerts */}
+        <div className="space-y-6 lg:col-span-1">
+          {/* Monitoring Distribusi Material */}
+          <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-black text-slate-800">Distribusi Lokasi</h3>
+              <FiMapPin className="text-slate-400" size={20} />
+            </div>
+            <div className="space-y-6">
+              {distributionData.length > 0 ? distributionData.map((item, idx) => (
+                <div key={idx} className="space-y-2">
+                  <div className="flex justify-between text-xs font-black uppercase tracking-wider">
+                    <span className="text-slate-600">{item.site}</span>
+                    <span className="text-slate-400">{item.totalSent} Terkirim</span>
+                  </div>
+                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-slate-900 rounded-full transition-all duration-1000"
+                      style={{ width: `${Math.min(100, (item.onDelivery / (item.totalSent || 1)) * 100)}%` }}
+                    ></div>
+                  </div>
+                  <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase">
+                    <span>Progress Pengiriman</span>
+                    <span>{item.onDelivery} On Delivery</span>
+                  </div>
+                </div>
+              )) : (
+                <div className="text-center py-4 text-slate-400 text-[10px] font-black uppercase tracking-widest">
+                  Data distribusi belum tersedia
+                </div>
+              )}
+            </div>
+          </div>
+
+          {user?.role !== 'OM' && (
+            <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-black text-slate-800">Peringatan Stok</h3>
+                <FiAlertCircle className="text-sundaya-red" size={20} />
+              </div>
+              <div className="space-y-4">
+                {alerts.length > 0 ? alerts.slice(0, 3).map((alert, idx) => (
+                  <div key={idx} className="flex items-start space-x-3 p-3 rounded-2xl bg-red-50/50 border border-red-50">
+                    <div className="mt-1 w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />
+                    <div>
+                      <p className="text-[11px] font-black text-slate-800 uppercase tracking-tight leading-tight">
+                        {alert.message}
+                      </p>
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                        {new Date(alert.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+                )) : (
+                  <div className="text-center py-4 text-slate-400 text-[10px] font-black uppercase tracking-widest">
+                    Tidak ada peringatan stok
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
+            <h3 className="text-xl font-black text-slate-800 mb-6">Laporan Cepat</h3>
+            <div className="space-y-4">
+              <button 
+                onClick={handleDownloadReport}
+                className="w-full flex items-center justify-between p-4 rounded-2xl bg-slate-50 hover:bg-slate-100 transition-all group"
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-white rounded-xl shadow-sm">
+                    <FiPackage className="text-blue-500" size={18} />
+                  </div>
+                  <span className="text-sm font-bold text-slate-700">Pergerakan Stok</span>
+                </div>
+                <FiChevronRight className="text-slate-300 group-hover:text-slate-500" size={18} />
+              </button>
+              <button 
+                onClick={() => handleDownloadStatusReport('PENDING')}
+                className="w-full flex items-center justify-between p-4 rounded-2xl bg-slate-50 hover:bg-slate-100 transition-all group"
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-white rounded-xl shadow-sm">
+                    <FiClock className="text-amber-500" size={18} />
+                  </div>
+                  <span className="text-sm font-bold text-slate-700">Pending Items</span>
+                </div>
+                <FiChevronRight className="text-slate-300 group-hover:text-slate-500" size={18} />
+              </button>
+              <button 
+                onClick={() => handleDownloadStatusReport('RECEIVED')}
+                className="w-full flex items-center justify-between p-4 rounded-2xl bg-slate-50 hover:bg-slate-100 transition-all group"
+              >
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-white rounded-xl shadow-sm">
+                    <FiCheckCircle className="text-emerald-500" size={18} />
+                  </div>
+                  <span className="text-sm font-bold text-slate-700">Received Items</span>
+                </div>
+                <FiChevronRight className="text-slate-300 group-hover:text-slate-500" size={18} />
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Recent Activity Table */}
@@ -374,6 +568,59 @@ const SiteDashboard = () => {
             </tbody>
           </table>
         </div>
+      </div>
+
+      {/* Executive Notes Section */}
+      {executiveNotes.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center space-x-2 px-1">
+            <FiMessageSquare className="text-sundaya-red" />
+            <h2 className="text-sm font-black text-slate-800 uppercase tracking-widest">Arahan Eksekutif (GM)</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {executiveNotes.map((note) => (
+              <div key={note.id} className={clsx(
+                "p-5 rounded-[2rem] border shadow-sm transition-all hover:shadow-md",
+                note.priority === 'URGENT' 
+                  ? "bg-red-50 border-red-100 text-red-900" 
+                  : "bg-white border-slate-100 text-slate-800"
+              )}>
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex items-center space-x-2">
+                    <div className={clsx(
+                      "w-2 h-2 rounded-full",
+                      note.priority === 'URGENT' ? "bg-red-500 animate-pulse" : "bg-sundaya-red"
+                    )}></div>
+                    <span className="text-[10px] font-black uppercase tracking-widest opacity-70">
+                      {note.priority}
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-bold opacity-50">
+                    {new Date(note.createdAt).toLocaleDateString('id-ID')}
+                  </span>
+                </div>
+                <p className="text-sm font-medium leading-relaxed italic">"{note.message}"</p>
+                <div className="mt-4 pt-3 border-t border-current opacity-10 flex justify-between items-center">
+                  <span className="text-[10px] font-black uppercase">Dari: {note.sender?.name}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Help Banner */}
+      <div className="bg-slate-900 p-8 rounded-[2rem] shadow-lg shadow-slate-200 text-white relative overflow-hidden">
+        <div className="relative z-10">
+          <h3 className="text-lg font-black mb-2">Butuh Bantuan?</h3>
+          <p className="text-slate-400 text-xs font-medium mb-6 leading-relaxed">
+            Hubungi tim IT jika Anda mengalami kendala pada sistem inventaris.
+          </p>
+          <button className="px-6 py-3 bg-white text-slate-900 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-slate-100 transition-all">
+            Buka Tiket
+          </button>
+        </div>
+        <FiShield size={120} className="absolute -bottom-10 -right-10 text-white/5 rotate-12" />
       </div>
 
       {/* Modal Buat Request */}

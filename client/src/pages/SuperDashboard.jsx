@@ -11,6 +11,8 @@ import axios from 'axios';
 import { clsx } from 'clsx';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { toast } from 'react-hot-toast';
+import socket from '../utils/socket';
 
 const StatCard = ({ title, value, icon: Icon, color, trend }) => (
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between group hover:border-sundaya-light transition-all duration-300">
@@ -61,6 +63,23 @@ const SuperDashboard = () => {
 
     useEffect(() => {
         fetchStats();
+
+        // Listen for real-time executive notes
+        socket.on('new_executive_note', (note) => {
+            if (note.targetRole === 'ALL' || note.targetRole === 'NOC') {
+                toast.success(`Arahan Baru dari GM: ${note.message.substring(0, 50)}...`, {
+                    icon: '📢',
+                    duration: 5000,
+                    position: 'top-right'
+                });
+                // Optional: Refresh stats if the note might affect data
+                fetchStats();
+            }
+        });
+
+        return () => {
+            socket.off('new_executive_note');
+        };
     }, []);
 
     // ✅ FIX handleExport - Pakai POST dan Blob (PDF Only)

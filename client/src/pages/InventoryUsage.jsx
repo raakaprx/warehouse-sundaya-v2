@@ -34,11 +34,10 @@ const InventoryUsage = () => {
   const allowedSites = useMemo(() => {
     if (!isOm) return sites;
     return sites.filter((site) => {
-      if (user?.siteId) return String(site.id) === String(user.siteId);
       const lower = String(site?.name || '').toLowerCase();
       return lower.includes('papua') || lower.includes('maluku');
     });
-  }, [isOm, sites, user?.siteId]);
+  }, [isOm, sites]);
 
   const fetchMetadata = async () => {
     const token = localStorage.getItem('token');
@@ -85,6 +84,18 @@ const InventoryUsage = () => {
   }, [location.search]);
 
   useEffect(() => {
+    if (!showModal || !isOm) return;
+    if (!form.siteId) return;
+    const stillAllowed = allowedSites.some((site) => String(site.id) === String(form.siteId));
+    if (!stillAllowed) {
+      setForm((prev) => ({
+        ...prev,
+        siteId: allowedSites.length > 0 ? String(allowedSites[0].id) : ''
+      }));
+    }
+  }, [showModal, isOm, form.siteId, allowedSites]);
+
+  useEffect(() => {
     if (!showModal) return;
     if (!form.siteId && allowedSites.length > 0) {
       setForm((prev) => ({ ...prev, siteId: String(allowedSites[0].id) }));
@@ -94,10 +105,19 @@ const InventoryUsage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      if (isOm && allowedSites.length === 0) {
+        toast.error('Site OM tidak ditemukan. Hubungi admin untuk konfigurasi akun.');
+        return;
+      }
+
+      const selectedSiteId = isOm && allowedSites.length === 1
+        ? Number(allowedSites[0].id)
+        : Number(form.siteId);
+
       const token = localStorage.getItem('token');
       await axios.post('http://localhost:5000/api/inventory-usage', {
         materialId: Number(form.materialId),
-        siteId: Number(form.siteId),
+        siteId: selectedSiteId,
         quantity: Number(form.quantity),
         project: form.project,
         reason: form.reason

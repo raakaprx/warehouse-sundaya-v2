@@ -10,7 +10,8 @@ const {
   getAlerts, 
   getLogs, 
   upsertMaterial, 
-  deleteMaterial, 
+  deleteMaterial,
+  deleteInventory,
   getShipments,
   getSites,
   getMaterials,
@@ -45,6 +46,14 @@ router.delete('/:id',
   deleteMaterial
 );
 
+router.delete('/stock/:id',
+  authMiddleware(['NOC', 'PROGRAMMER']),
+  validate([
+    param('id').isInt().withMessage('ID Inventory tidak valid'),
+  ]),
+  deleteInventory
+);
+
 router.post('/update', 
   authMiddleware(['NOC', 'OM', 'PROGRAMMER']), 
   validate([
@@ -54,10 +63,10 @@ router.post('/update',
   updateStock
 );
 
-router.get('/alerts', authMiddleware(['NOC', 'GM', 'PROGRAMMER']), getAlerts);
-router.patch('/alerts/:id/read', authMiddleware(['NOC', 'GM', 'PROGRAMMER']), markAlertRead);
-router.patch('/alerts/:id/resolve', authMiddleware(['NOC', 'GM', 'PROGRAMMER']), resolveAlert);
-router.get('/audit-logs', authMiddleware(['NOC', 'GM', 'PROGRAMMER']), getLogs);
+router.get('/alerts', authMiddleware(['NOC', 'GM', 'PROGRAMMER', 'OM']), getAlerts);
+router.patch('/alerts/:id/read', authMiddleware(['NOC', 'GM', 'PROGRAMMER', 'OM']), markAlertRead);
+router.patch('/alerts/:id/resolve', authMiddleware(['NOC', 'GM', 'PROGRAMMER', 'OM']), resolveAlert);
+router.get('/audit-logs', authMiddleware(['NOC', 'GM', 'PROGRAMMER', 'OM']), getLogs);
 router.get('/shipments', authMiddleware(['NOC', 'GM', 'OM', 'PROGRAMMER']), getShipments);
 router.get('/movements', authMiddleware(['NOC', 'GM', 'OM', 'PROGRAMMER']), getStockMovements);
 
