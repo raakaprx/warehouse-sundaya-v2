@@ -59,6 +59,10 @@ const Alert = sequelize.define('Alert', {
     type: DataTypes.TEXT,
     allowNull: true
   },
+  resolutionReason: {
+    type: DataTypes.ENUM('STOCK_AVAILABLE', 'THRESHOLD_UPDATED', 'FALSE_ALERT', 'OTHER'),
+    allowNull: true
+  },
   lastTriggeredAt: {
     type: DataTypes.DATE,
     allowNull: true
@@ -70,6 +74,14 @@ const Alert = sequelize.define('Alert', {
   message: {
     type: DataTypes.TEXT,
     allowNull: false
+  },
+  escalatedToOMAt: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  escalatedToGMAt: {
+    type: DataTypes.DATE,
+    allowNull: true
   }
 }, {
   tableName: 'alerts',
@@ -79,7 +91,9 @@ const Alert = sequelize.define('Alert', {
     { fields: ['priority'] },
     { fields: ['siteId'] },
     { fields: ['snoozeUntil'] },
-    { fields: ['createdAt'] }
+    { fields: ['createdAt'] },
+    { fields: ['escalatedToOMAt'] },
+    { fields: ['escalatedToGMAt'] }
   ]
 });
 

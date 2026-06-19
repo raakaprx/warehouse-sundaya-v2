@@ -7,7 +7,7 @@ const {
   Alert, 
   Inventory,
   sequelize 
-} = require('./server/src/models');
+} = require('../server/src/models');
 
 async function seedDummyData() {
   console.log('--- Memulai Seeding Data Dummy untuk GM Dashboard ---');

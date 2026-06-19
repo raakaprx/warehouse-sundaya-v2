@@ -1,6 +1,8 @@
-const { Inventory, Material, Site, AuditLog, Alert, StockMovement, User, MaterialRequest, MaterialRequestItem, UsedMaterialReport, sequelize } = require('../models');
+const { Inventory, Material, Site, AuditLog, Alert, StockMovement, User, MaterialRequest, MaterialRequestItem, UsedMaterialReport, sequelize, AlertTimeline } = require('../models');
+const { Op } = require('sequelize');
 const { getIO } = require('../utils/socket');
 const StockService = require('../services/stockService');
+const { runThresholdCheck } = require('../utils/cron');
 
 exports.updateThresholds = async (req, res) => {
   try {
@@ -153,6 +155,7 @@ exports.upsertMaterial = async (req, res) => {
       siteId: siteId || null,
       type: id ? 'UPDATE_MATERIAL' : 'CREATE_MATERIAL'
     });
+    runThresholdCheck().catch(() => {});
     res.json({ success: true, data: material });
   } catch (error) {
     await t.rollback();
@@ -277,11 +280,10 @@ exports.getStockMovements = async (req, res) => {
 
 exports.getShipments = async (req, res) => {
   try {
-    const { Op } = require('sequelize');
     const shipments = await MaterialRequest.findAll({
       where: { 
         status: { 
-          [Op.in]: ['ON_DELIVERY', 'FULFILLED', 'APPROVED_BY_GM'] //, 'APPROVED_READY_TO_SHIP'
+          [Op.in]: ['ON_DELIVERY', 'FULFILLED', 'APPROVED_BY_GM']
         } 
       },
       include: [
@@ -341,6 +343,132 @@ exports.getSites = async (req, res) => {
   try {
     const sites = await Site.findAll();
     res.json({ success: true, data: sites });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.getAlertById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const alert = await Alert.findByPk(id, {
+      include: [
+        { model: Material, attributes: ['id', 'name', 'sku', 'category'] },
+        { model: Site, attributes: ['id', 'name', 'location'] }
+      ]
+    });
+    if (!alert) return res.status(404).json({ success: false, message: 'Alert tidak ditemukan' });
+    res.json({ success: true, data: alert });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.getAlertTimeline = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const timeline = await AlertTimeline.findAll({
+      where: { alertId: id },
+      include: [
+        { model: User, as: 'user', attributes: ['id', 'username'] }
+      ],
+      order: [['timestamp', 'DESC']]
+    });
+    res.json({ success: true, data: timeline });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.resolveAlertWithReason = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason, notes } = req.body;
+    const alert = await Alert.findByPk(id);
+    if (!alert) return res.status(404).json({ success: false, message: 'Alert tidak ditemukan' });
+    
+    await alert.update({
+      status: 'RESOLVED',
+      resolvedBy: req.user.id,
+      resolvedAt: new Date(),
+      resolutionReason: reason,
+      resolutionNote: notes
+    });
+
+    await AlertTimeline.create({
+      alertId: alert.id,
+      userId: req.user.id,
+      action: 'RESOLVED',
+      notes: `Reason: ${reason}, Notes: ${notes}`
+    });
+
+    await AuditLog.create({
+      userId: req.user.id,
+      action: 'RESOLVE_ALERT',
+      module: 'ALERT',
+      details: `Menangani alert ${alert.id} dengan alasan ${reason}: ${notes}`
+    });
+
+    const io = getIO();
+    io.emit('alert_resolved', {
+      alertId: alert.id,
+      status: 'RESOLVED'
+    });
+
+    res.json({ success: true, data: alert });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.markAlertViewed = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const alert = await Alert.findByPk(id);
+    if (!alert) return res.status(404).json({ success: false, message: 'Alert tidak ditemukan' });
+
+    await alert.update({ status: 'READ', acknowledgedBy: req.user.id, acknowledgedAt: new Date() });
+
+    await AlertTimeline.create({
+      alertId: alert.id,
+      userId: req.user.id,
+      action: 'VIEWED'
+    });
+
+    res.json({ success: true, data: alert });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.getAlertStats = async (req, res) => {
+  try {
+    const activeAlerts = await Alert.count({ where: { status: { [Op.ne]: 'RESOLVED' } } });
+    const criticalAlerts = await Alert.count({ where: { status: { [Op.ne]: 'RESOLVED' }, priority: 'CRITICAL' } });
+    const warningAlerts = await Alert.count({ where: { status: { [Op.ne]: 'RESOLVED' }, priority: 'WARNING' } });
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const resolvedToday = await Alert.count({ where: { status: 'RESOLVED', updatedAt: { [Op.gte]: startOfDay } } });
+    const escalatedAlerts = await Alert.count({ 
+      where: { 
+        status: { [Op.ne]: 'RESOLVED' },
+        [Op.or]: [
+          { escalatedToOMAt: { [Op.not]: null } },
+          { escalatedToGMAt: { [Op.not]: null } }
+        ]
+      } 
+    });
+
+    res.json({
+      success: true,
+      data: {
+        activeAlerts,
+        criticalAlerts,
+        warningAlerts,
+        resolvedToday,
+        escalatedAlerts
+      }
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

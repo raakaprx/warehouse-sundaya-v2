@@ -676,9 +676,9 @@ const MaterialRequests = () => {
     : sites;
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-8">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-8">
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
             {isReviewRole ? t('reviewRequestsTitle') : t('materialRequestsTitle')}
@@ -698,9 +698,9 @@ const MaterialRequests = () => {
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Main Content: Request List */}
-        <div className="lg:col-span-3 space-y-6">
+        <div className="lg:col-span-9 space-y-6">
           <div className="flex flex-col lg:flex-row gap-4 items-stretch">
             <div className="relative flex-1 w-full">
               <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
@@ -966,7 +966,7 @@ const MaterialRequests = () => {
         </div>
 
         {/* Sidebar Info */}
-        <div className="space-y-6">
+        <div className="lg:col-span-3 space-y-6">
           <div className="bg-white p-6 sm:p-8 rounded-[2rem] border border-slate-50 shadow-sm space-y-6">
             <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest border-b border-slate-100 pb-4">Alur Birokrasi</h4>
             <div className="space-y-8 relative">

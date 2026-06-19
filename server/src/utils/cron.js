@@ -1,7 +1,7 @@
 const cron = require('node-cron');
 const fs = require('fs');
 const path = require('path');
-const { Inventory, Material, Site, sequelize, Alert, User, Notification } = require('../models');
+const { Inventory, Material, Site, sequelize, Alert, User, Notification, AlertTimeline } = require('../models');
 const { Op, DataTypes } = require('sequelize');
 const { getIO } = require('../utils/socket');
 const { sendEmail } = require('../utils/emailService');
@@ -19,15 +19,24 @@ const ensureAlertSchema = async () => {
   if (!alertColumns.resolutionNote) await qi.addColumn('alerts', 'resolutionNote', { type: DataTypes.TEXT, allowNull: true });
   if (!alertColumns.lastTriggeredAt) await qi.addColumn('alerts', 'lastTriggeredAt', { type: DataTypes.DATE, allowNull: true });
   if (!alertColumns.snoozeUntil) await qi.addColumn('alerts', 'snoozeUntil', { type: DataTypes.DATE, allowNull: true });
+  if (!alertColumns.resolutionReason) await qi.addColumn('alerts', 'resolutionReason', { type: DataTypes.ENUM('STOCK_AVAILABLE', 'THRESHOLD_UPDATED', 'FALSE_ALERT', 'OTHER'), allowNull: true });
+  if (!alertColumns.escalatedToOMAt) await qi.addColumn('alerts', 'escalatedToOMAt', { type: DataTypes.DATE, allowNull: true });
+  if (!alertColumns.escalatedToGMAt) await qi.addColumn('alerts', 'escalatedToGMAt', { type: DataTypes.DATE, allowNull: true });
   const notificationColumns = await qi.describeTable('notifications');
   if (!notificationColumns.alertId) await qi.addColumn('notifications', 'alertId', { type: DataTypes.INTEGER, allowNull: true });
+  // Check AlertTimeline table
+  try {
+    await qi.describeTable('alert_timelines');
+  } catch (e) {
+    await AlertTimeline.sync({ force: false });
+  }
   schemaEnsured = true;
 };
 
 const getAlertLevel = (stock, minThreshold) => {
   const current = Number(stock || 0);
   const min = Number(minThreshold || 0);
-  const warningUpper = min + Math.max(2, Math.ceil(min * 0.2));
+  
   if (current <= 0) {
     return {
       type: 'OUT_OF_STOCK',
@@ -35,14 +44,16 @@ const getAlertLevel = (stock, minThreshold) => {
       status: 'LOW'
     };
   }
-  if (current <= min) {
+  // Critical: stock is less than or equal to 50% of threshold
+  if (current <= min * 0.5) {
     return {
       type: 'CRITICAL_STOCK',
       priority: 'CRITICAL',
       status: 'LOW'
     };
   }
-  if (current <= warningUpper) {
+  // Warning: stock is below threshold but above 50%
+  if (current < min) {
     return {
       type: 'WARNING_STOCK',
       priority: 'WARNING',
@@ -56,15 +67,26 @@ const getAlertLevel = (stock, minThreshold) => {
   };
 };
 
-const getAlertRecipients = async (siteId) => {
-  return User.findAll({
-    where: {
+const getAlertRecipients = async (siteId, escalationLevel = null) => {
+  let where = {};
+  
+  if (escalationLevel === 'OM') {
+    where = {
+      role: 'OM',
+      siteId: siteId
+    };
+  } else if (escalationLevel === 'GM') {
+    where = { role: 'GM' };
+  } else {
+    where = {
       [Op.or]: [
         { role: { [Op.in]: ['NOC', 'GM', 'PROGRAMMER'] } },
         { role: 'OM', siteId }
       ]
-    }
-  });
+    };
+  }
+  
+  return User.findAll({ where });
 };
 
 const sendAlertNotifications = async (users, type, message, alertId, metadata) => {
@@ -90,6 +112,7 @@ const runThresholdCheck = async () => {
       include: [Material, Site]
     });
     const io = getIO();
+    const now = new Date();
 
     for (const item of allItems) {
       const level = getAlertLevel(item.stock, item.minThreshold);
@@ -101,7 +124,7 @@ const runThresholdCheck = async () => {
         },
         order: [['updatedAt', 'DESC']]
       });
-      const now = new Date();
+      
       const recipients = await getAlertRecipients(item.siteId);
       const shortage = Math.max(0, (item.minThreshold || 0) - (item.stock || 0));
 
@@ -121,6 +144,29 @@ const runThresholdCheck = async () => {
               message,
               lastTriggeredAt: now
             });
+            // Check for escalation
+            if (activeAlert.priority === 'CRITICAL') {
+              const timeSinceCreated = (now - new Date(activeAlert.createdAt)) / (1000 * 60 * 60);
+              if (timeSinceCreated >= 24 && !activeAlert.escalatedToGMAt) {
+                const gmRecipients = await getAlertRecipients(item.siteId, 'GM');
+                await sendAlertNotifications(gmRecipients, 'ESCALATION_GM', `Alert critical untuk ${item.Material.name} di ${item.Site.name} belum ditangani selama 24 jam`, activeAlert.id, { materialId: item.Material.id, siteId: item.Site.id, status: 'ESCALATED' });
+                await AlertTimeline.create({
+                  alertId: activeAlert.id,
+                  action: 'ESCALATED_GM',
+                  timestamp: now
+                });
+                await activeAlert.update({ escalatedToGMAt: now });
+              } else if (timeSinceCreated >= 12 && !activeAlert.escalatedToOMAt) {
+                const omRecipients = await getAlertRecipients(item.siteId, 'OM');
+                await sendAlertNotifications(omRecipients, 'ESCALATION_OM', `Alert critical untuk ${item.Material.name} di ${item.Site.name} belum ditangani selama 12 jam`, activeAlert.id, { materialId: item.Material.id, siteId: item.Site.id, status: 'ESCALATED' });
+                await AlertTimeline.create({
+                  alertId: activeAlert.id,
+                  action: 'ESCALATED_OM',
+                  timestamp: now
+                });
+                await activeAlert.update({ escalatedToOMAt: now });
+              }
+            }
             continue;
           }
           const wasRead = activeAlert.status === 'READ';
@@ -145,6 +191,29 @@ const runThresholdCheck = async () => {
             alertId: activeAlert.id,
             timestamp: now
           });
+          // Check for escalation
+          if (activeAlert.priority === 'CRITICAL') {
+            const timeSinceCreated = (now - new Date(activeAlert.createdAt)) / (1000 * 60 * 60);
+            if (timeSinceCreated >= 24 && !activeAlert.escalatedToGMAt) {
+              const gmRecipients = await getAlertRecipients(item.siteId, 'GM');
+              await sendAlertNotifications(gmRecipients, 'ESCALATION_GM', `Alert critical untuk ${item.Material.name} di ${item.Site.name} belum ditangani selama 24 jam`, activeAlert.id, { materialId: item.Material.id, siteId: item.Site.id, status: 'ESCALATED' });
+              await AlertTimeline.create({
+                alertId: activeAlert.id,
+                action: 'ESCALATED_GM',
+                timestamp: now
+              });
+              await activeAlert.update({ escalatedToGMAt: now });
+            } else if (timeSinceCreated >= 12 && !activeAlert.escalatedToOMAt) {
+              const omRecipients = await getAlertRecipients(item.siteId, 'OM');
+              await sendAlertNotifications(omRecipients, 'ESCALATION_OM', `Alert critical untuk ${item.Material.name} di ${item.Site.name} belum ditangani selama 12 jam`, activeAlert.id, { materialId: item.Material.id, siteId: item.Site.id, status: 'ESCALATED' });
+              await AlertTimeline.create({
+                alertId: activeAlert.id,
+                action: 'ESCALATED_OM',
+                timestamp: now
+              });
+              await activeAlert.update({ escalatedToOMAt: now });
+            }
+          }
           continue;
         }
 
@@ -173,6 +242,11 @@ const runThresholdCheck = async () => {
           message,
           lastTriggeredAt: now
         });
+        await AlertTimeline.create({
+          alertId: createdAlert.id,
+          action: 'CREATED',
+          timestamp: now
+        });
         await sendAlertNotifications(
           recipients,
           'ALERT',
@@ -180,6 +254,11 @@ const runThresholdCheck = async () => {
           createdAlert.id,
           { materialId: item.Material.id, siteId: item.Site.id, status: 'NEW', priority: level.priority, type: level.type }
         );
+        await AlertTimeline.create({
+          alertId: createdAlert.id,
+          action: 'NOTIFICATION_SENT',
+          timestamp: now
+        });
         io.emit('new_alert', {
           type: level.type,
           priority: level.priority,
@@ -202,6 +281,11 @@ const runThresholdCheck = async () => {
           message: `Stok ${item.Material.name} di ${item.Site.name} kembali aman (${item.stock}/${item.minThreshold})`,
           lastTriggeredAt: now,
           snoozeUntil: null
+        });
+        await AlertTimeline.create({
+          alertId: activeAlert.id,
+          action: 'RESOLVED',
+          timestamp: now
         });
         const payload = {
           type: activeAlert.type,
@@ -264,7 +348,7 @@ const runBackup = async () => {
     const source = path.join(__dirname, '../../database.sqlite');
     const backupDir = path.join(__dirname, '../../backups');
     if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const timestamp = new Date().toISOString().replaceAll(':', '-').replaceAll('.', '-');
     const target = path.join(backupDir, `database-${timestamp}.sqlite`);
     fs.copyFileSync(source, target);
     console.log(`[${new Date().toISOString()}] Backup database berhasil: ${target}`);

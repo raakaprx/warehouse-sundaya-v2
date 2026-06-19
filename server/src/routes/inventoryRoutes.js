@@ -18,7 +18,12 @@ const {
   updateThresholds,
   markAlertRead,
   resolveAlert,
-  getStockMovements
+  getStockMovements,
+  getAlertById,
+  getAlertTimeline,
+  resolveAlertWithReason,
+  markAlertViewed,
+  getAlertStats
 } = require('../controllers/inventoryController');
 
 // Inventory Routes (Prefix is /api/inventory)
@@ -64,8 +69,13 @@ router.post('/update',
 );
 
 router.get('/alerts', authMiddleware(['NOC', 'GM', 'PROGRAMMER', 'OM']), getAlerts);
+router.get('/alerts/stats', authMiddleware(['NOC', 'GM', 'PROGRAMMER', 'OM']), getAlertStats);
+router.get('/alerts/:id', authMiddleware(['NOC', 'GM', 'PROGRAMMER', 'OM']), getAlertById);
+router.get('/alerts/:id/timeline', authMiddleware(['NOC', 'GM', 'PROGRAMMER', 'OM']), getAlertTimeline);
 router.patch('/alerts/:id/read', authMiddleware(['NOC', 'GM', 'PROGRAMMER', 'OM']), markAlertRead);
+router.patch('/alerts/:id/viewed', authMiddleware(['NOC', 'GM', 'PROGRAMMER', 'OM']), markAlertViewed);
 router.patch('/alerts/:id/resolve', authMiddleware(['NOC', 'GM', 'PROGRAMMER', 'OM']), resolveAlert);
+router.patch('/alerts/:id/resolve-with-reason', authMiddleware(['NOC', 'GM', 'PROGRAMMER', 'OM']), resolveAlertWithReason);
 router.get('/audit-logs', authMiddleware(['NOC', 'GM', 'PROGRAMMER', 'OM']), getLogs);
 router.get('/shipments', authMiddleware(['NOC', 'GM', 'OM', 'PROGRAMMER']), getShipments);
 router.get('/movements', authMiddleware(['NOC', 'GM', 'OM', 'PROGRAMMER']), getStockMovements);

@@ -11,6 +11,7 @@ const StockMovement = require('./StockMovement');
 const Alert = require('./Alert');
 const Notification = require('./Notification');
 const ExecutiveNote = require('./ExecutiveNote');
+const AlertTimeline = require('./AlertTimeline');
 
 // Associations
 Site.hasMany(User, { foreignKey: 'siteId' });
@@ -73,6 +74,11 @@ Notification.belongsTo(User, { foreignKey: 'userId' });
 Alert.hasMany(Notification, { foreignKey: 'alertId' });
 Notification.belongsTo(Alert, { foreignKey: 'alertId' });
 
+Alert.hasMany(AlertTimeline, { foreignKey: 'alertId', onDelete: 'CASCADE' });
+AlertTimeline.belongsTo(Alert, { foreignKey: 'alertId' });
+
+AlertTimeline.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
 const db = {
   sequelize,
   User,
@@ -86,7 +92,8 @@ const db = {
   StockMovement,
   Alert,
   Notification,
-  ExecutiveNote
+  ExecutiveNote,
+  AlertTimeline
 };
 
 module.exports = db;

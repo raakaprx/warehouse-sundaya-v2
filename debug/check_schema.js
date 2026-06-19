@@ -1,4 +1,4 @@
-const { ExecutiveNote } = require('./src/models');
+const { ExecutiveNote } = require('../server/src/models');
 
 async function checkSchema() {
     try {

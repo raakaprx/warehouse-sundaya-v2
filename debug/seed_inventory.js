@@ -1,4 +1,6 @@
-const { Material, Inventory, Site, sequelize } = require('./server/src/models');
+const { Material, Inventory, Site, sequelize } = require('../server/src/models');
+
+
 
 const materialsData = [
   { sku: '7545', name: 'Talis 5', category: 'Solar Unit', specs: 'Talis 5 series component' },
