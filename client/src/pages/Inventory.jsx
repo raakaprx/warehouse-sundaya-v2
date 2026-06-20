@@ -20,7 +20,7 @@ const Inventory = () => {
   const [movements, setMovements] = useState([]);
   const [movementsLoading, setMovementsLoading] = useState(false);
   const [formData, setFormData] = useState({
-    sku: '', itemCode: '', name: '', specs: '', category: '', stock: 0, siteId: '', minThreshold: 5, image: ''
+    sku: '', itemCode: '', name: '', specs: '', category: '', stock: 0, siteId: '', minThreshold: 5, warningThreshold: 20, criticalThreshold: 10, image: ''
   });
   const [sites, setSites] = useState([]);
   const fallbackSites = [
@@ -100,11 +100,13 @@ const Inventory = () => {
         stock: item.stock || 0, 
         siteId: item.siteId || '', 
         minThreshold: item.minThreshold || 5,
+        warningThreshold: item.warningThreshold || 20,
+        criticalThreshold: item.criticalThreshold || 10,
         image: item.Material?.image || '' 
       });
     } else {
       setEditingItem(null);
-      setFormData({ sku: '', itemCode: '', name: '', specs: '', category: '', stock: 0, siteId: '', minThreshold: 5, image: '' });
+      setFormData({ sku: '', itemCode: '', name: '', specs: '', category: '', stock: 0, siteId: '', minThreshold: 5, warningThreshold: 20, criticalThreshold: 10, image: '' });
     }
     setShowModal(true);
   };
@@ -397,14 +399,18 @@ const Inventory = () => {
                     <p className="text-sm font-bold text-slate-700">{detailItem.Site?.location || '-'}</p>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div>
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Stock</p>
                     <p className="text-sm font-black text-slate-800">{detailItem.stock} Units</p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Min Threshold</p>
-                    <p className="text-sm font-black text-slate-800">{detailItem.minThreshold}</p>
+                    <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Warning Threshold</p>
+                    <p className="text-sm font-black text-slate-800">{detailItem.warningThreshold || detailItem.minThreshold || 20}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-red-500 uppercase tracking-widest">Critical Threshold</p>
+                    <p className="text-sm font-black text-slate-800">{detailItem.criticalThreshold || detailItem.minThreshold || 10}</p>
                   </div>
                 </div>
                 <div className="space-y-3">
@@ -486,7 +492,7 @@ const Inventory = () => {
                     required
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div>
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Initial Stock</label>
                     <input 
@@ -498,12 +504,22 @@ const Inventory = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Threshold Alert</label>
+                    <label className="block text-[10px] font-black text-amber-500 uppercase tracking-widest mb-2 ml-1">Warning Threshold</label>
                     <input 
                       type="number" 
-                      className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-sundaya-red focus:outline-none transition-all font-bold text-slate-700"
-                      value={formData.minThreshold}
-                      onChange={(e) => setFormData({...formData, minThreshold: parseInt(e.target.value)})}
+                      className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-amber-500 focus:outline-none transition-all font-bold text-slate-700"
+                      value={formData.warningThreshold}
+                      onChange={(e) => setFormData({...formData, warningThreshold: parseInt(e.target.value)})}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-red-500 uppercase tracking-widest mb-2 ml-1">Critical Threshold</label>
+                    <input 
+                      type="number" 
+                      className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-red-500 focus:outline-none transition-all font-bold text-slate-700"
+                      value={formData.criticalThreshold}
+                      onChange={(e) => setFormData({...formData, criticalThreshold: parseInt(e.target.value)})}
                       required
                     />
                   </div>

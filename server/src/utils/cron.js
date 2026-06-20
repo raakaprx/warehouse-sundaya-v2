@@ -11,6 +11,29 @@ let schemaEnsured = false;
 const ensureAlertSchema = async () => {
   if (schemaEnsured) return;
   const qi = sequelize.getQueryInterface();
+  
+  // Update Inventories table
+  const inventoryColumns = await qi.describeTable('Inventories');
+  if (!inventoryColumns.warningThreshold) {
+    await qi.addColumn('Inventories', 'warningThreshold', {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      defaultValue: 20
+    });
+    // Copy minThreshold values to warningThreshold for existing records
+    await sequelize.query(`UPDATE Inventories SET warningThreshold = minThreshold WHERE warningThreshold IS NULL`);
+  }
+  if (!inventoryColumns.criticalThreshold) {
+    await qi.addColumn('Inventories', 'criticalThreshold', {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      defaultValue: 10
+    });
+    // Set criticalThreshold to half of minThreshold (or 1) for existing records
+    await sequelize.query(`UPDATE Inventories SET criticalThreshold = CASE WHEN minThreshold > 1 THEN FLOOR(minThreshold / 2) ELSE 1 END WHERE criticalThreshold IS NULL`);
+  }
+
+  // Update Alerts table
   const alertColumns = await qi.describeTable('alerts');
   if (!alertColumns.acknowledgedBy) await qi.addColumn('alerts', 'acknowledgedBy', { type: DataTypes.INTEGER, allowNull: true });
   if (!alertColumns.acknowledgedAt) await qi.addColumn('alerts', 'acknowledgedAt', { type: DataTypes.DATE, allowNull: true });
@@ -22,20 +45,25 @@ const ensureAlertSchema = async () => {
   if (!alertColumns.resolutionReason) await qi.addColumn('alerts', 'resolutionReason', { type: DataTypes.ENUM('STOCK_AVAILABLE', 'THRESHOLD_UPDATED', 'FALSE_ALERT', 'OTHER'), allowNull: true });
   if (!alertColumns.escalatedToOMAt) await qi.addColumn('alerts', 'escalatedToOMAt', { type: DataTypes.DATE, allowNull: true });
   if (!alertColumns.escalatedToGMAt) await qi.addColumn('alerts', 'escalatedToGMAt', { type: DataTypes.DATE, allowNull: true });
+
+  // Notifications table
   const notificationColumns = await qi.describeTable('notifications');
   if (!notificationColumns.alertId) await qi.addColumn('notifications', 'alertId', { type: DataTypes.INTEGER, allowNull: true });
+
   // Check AlertTimeline table
   try {
     await qi.describeTable('alert_timelines');
   } catch (e) {
     await AlertTimeline.sync({ force: false });
   }
+
   schemaEnsured = true;
 };
 
-const getAlertLevel = (stock, minThreshold) => {
+const getAlertLevel = (stock, warningThreshold, criticalThreshold) => {
   const current = Number(stock || 0);
-  const min = Number(minThreshold || 0);
+  const warning = Number(warningThreshold || 0);
+  const critical = Number(criticalThreshold || 0);
   
   if (current <= 0) {
     return {
@@ -44,16 +72,16 @@ const getAlertLevel = (stock, minThreshold) => {
       status: 'LOW'
     };
   }
-  // Critical: stock is less than or equal to 50% of threshold
-  if (current <= min * 0.5) {
+  // Critical: stock <= critical threshold
+  if (current <= critical) {
     return {
       type: 'CRITICAL_STOCK',
       priority: 'CRITICAL',
       status: 'LOW'
     };
   }
-  // Warning: stock is below threshold but above 50%
-  if (current < min) {
+  // Warning: stock <= warning threshold and > critical threshold
+  if (current <= warning) {
     return {
       type: 'WARNING_STOCK',
       priority: 'WARNING',
@@ -115,7 +143,9 @@ const runThresholdCheck = async () => {
     const now = new Date();
 
     for (const item of allItems) {
-      const level = getAlertLevel(item.stock, item.minThreshold);
+      const warningThresh = item.warningThreshold || item.minThreshold || 20;
+      const criticalThresh = item.criticalThreshold || item.minThreshold || 10;
+      const level = getAlertLevel(item.stock, warningThresh, criticalThresh);
       const activeAlert = await Alert.findOne({
         where: {
           materialId: item.materialId,
@@ -126,7 +156,7 @@ const runThresholdCheck = async () => {
       });
       
       const recipients = await getAlertRecipients(item.siteId);
-      const shortage = Math.max(0, (item.minThreshold || 0) - (item.stock || 0));
+      const shortage = Math.max(0, warningThresh - (item.stock || 0));
 
       if (level.status !== 'NORMAL') {
         const message = level.type === 'OUT_OF_STOCK'

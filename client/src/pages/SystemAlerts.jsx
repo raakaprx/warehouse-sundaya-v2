@@ -16,9 +16,6 @@ const SystemAlerts = () => {
     escalatedAlerts: 0
   });
   const [loading, setLoading] = useState(true);
-  const [showThresholdModal, setShowThresholdModal] = useState(false);
-  const [thresholdForm, setThresholdForm] = useState({ minThreshold: 5, siteId: '' });
-  const [sites, setSites] = useState([]);
   const [filterPriority, setFilterPriority] = useState('ALL');
   const [selectedAlert, setSelectedAlert] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -27,7 +24,6 @@ const SystemAlerts = () => {
 
   useEffect(() => {
     fetchAlerts();
-    fetchSites();
     fetchAlertStats();
   }, []);
 
@@ -39,17 +35,6 @@ const SystemAlerts = () => {
     window.addEventListener('alerts_updated', handleUpdate);
     return () => window.removeEventListener('alerts_updated', handleUpdate);
   }, []);
-
-  const fetchSites = async () => {
-    try {
-      const res = await axios.get('http://localhost:5000/api/inventory/sites', {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
-      setSites(res.data.data);
-    } catch (err) {
-      console.error('Failed to fetch sites', err);
-    }
-  };
 
   const fetchAlerts = async () => {
     try {
@@ -86,22 +71,6 @@ const SystemAlerts = () => {
       setSelectedAlert({ ...res.data.data, timeline: timelineRes.data.data });
     } catch (err) {
       console.error('Failed to fetch alert detail', err);
-    }
-  };
-
-  const handleUpdateThreshold = async (e) => {
-    e.preventDefault();
-    try {
-      const token = localStorage.getItem('token');
-      await axios.post('http://localhost:5000/api/inventory/update-thresholds', thresholdForm, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      alert('Threshold berhasil diperbarui');
-      setShowThresholdModal(false);
-      fetchAlerts();
-    } catch (err) {
-      alert('Gagal memperbarui threshold (Endpoint mungkin belum tersedia)');
     }
   };
 
@@ -322,77 +291,9 @@ const SystemAlerts = () => {
             </div>
           </div>
 
-          <div className="bg-white p-8 rounded-[2.5rem] border border-slate-50 shadow-sm space-y-4">
-            <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center">
-              <FiInfo className="text-sundaya-red" size={24} />
-            </div>
-            <h4 className="text-lg font-bold leading-tight">Threshold Konfigurasi</h4>
-            <p className="text-slate-400 text-xs font-medium leading-relaxed">
-              Peringatan stok akan muncul jika jumlah item di bawah batas minimum yang ditentukan di menu katalog.
-            </p>
-            <button 
-              onClick={() => setShowThresholdModal(true)}
-              className="w-full py-3 bg-slate-50 hover:bg-slate-100 rounded-xl text-xs font-black uppercase tracking-widest transition-all text-slate-600"
-            >
-              Ubah Threshold
-            </button>
-          </div>
+
         </div>
       </div>
-
-      {/* Threshold Modal */}
-      {showThresholdModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl animate-in fade-in zoom-in duration-300">
-            <div className="p-8 pb-0">
-              <h3 className="text-2xl font-black text-slate-900 tracking-tight">Set Threshold</h3>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Konfigurasi Batas Minimum Stok</p>
-            </div>
-            <form onSubmit={handleUpdateThreshold} className="p-8 space-y-6">
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Pilih Site Gudang</label>
-                <select 
-                  className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-sundaya-red focus:outline-none transition-all font-bold text-slate-700"
-                  value={thresholdForm.siteId}
-                  onChange={(e) => setThresholdForm({...thresholdForm, siteId: e.target.value})}
-                  required
-                >
-                  <option value="">- Pilih Site -</option>
-                  <option value="ALL">Semua Site (Global)</option>
-                  {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Batas Minimum (Unit)</label>
-                <input 
-                  type="number" 
-                  min="1"
-                  className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:bg-white focus:border-sundaya-red focus:outline-none transition-all font-bold text-slate-700"
-                  value={thresholdForm.minThreshold}
-                  onChange={(e) => setThresholdForm({...thresholdForm, minThreshold: parseInt(e.target.value)})}
-                  required
-                />
-                <p className="text-[10px] text-slate-400 mt-2 ml-1 italic">*Akan mengupdate threshold default untuk semua item di site yang dipilih.</p>
-              </div>
-              <div className="flex gap-3 pt-4">
-                <button 
-                  type="button" 
-                  onClick={() => setShowThresholdModal(false)}
-                  className="flex-1 py-4 rounded-2xl font-black uppercase tracking-widest text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 transition-all"
-                >
-                  Batal
-                </button>
-                <button 
-                  type="submit"
-                  className="flex-1 py-4 rounded-2xl font-black uppercase tracking-widest text-xs bg-sundaya-red hover:bg-red-700 text-white shadow-lg shadow-red-100 transition-all"
-                >
-                  Simpan
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Alert Detail Modal */}
       {showDetailModal && selectedAlert && (
@@ -440,8 +341,12 @@ const SystemAlerts = () => {
                       <p className="font-bold text-slate-900">{selectedAlert.stock}</p>
                     </div>
                     <div>
-                      <p className="text-xs font-bold text-slate-500">Threshold</p>
-                      <p className="font-bold text-slate-700">{selectedAlert.minThreshold}</p>
+                      <p className="text-xs font-bold text-amber-500 uppercase tracking-widest">Warning Threshold</p>
+                      <p className="font-bold text-slate-700">{selectedAlert.warningThreshold || selectedAlert.minThreshold || 20}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-red-500 uppercase tracking-widest">Critical Threshold</p>
+                      <p className="font-bold text-slate-700">{selectedAlert.criticalThreshold || selectedAlert.minThreshold || 10}</p>
                     </div>
                     <div>
                       <p className="text-xs font-bold text-slate-500">Stock Deficit</p>

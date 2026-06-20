@@ -6,23 +6,25 @@ const { runThresholdCheck } = require('../utils/cron');
 
 exports.updateThresholds = async (req, res) => {
   try {
-    const { siteId, minThreshold } = req.body;
+    const { siteId, minThreshold, warningThreshold, criticalThreshold } = req.body;
     
     const where = {};
     if (siteId && siteId !== 'ALL') {
       where.siteId = siteId;
     }
     
-    await Inventory.update(
-      { minThreshold: minThreshold },
-      { where }
-    );
+    const updateData = {};
+    if (minThreshold !== undefined) updateData.minThreshold = minThreshold;
+    if (warningThreshold !== undefined) updateData.warningThreshold = warningThreshold;
+    if (criticalThreshold !== undefined) updateData.criticalThreshold = criticalThreshold;
+    
+    await Inventory.update(updateData, { where });
     
     await AuditLog.create({
       userId: req.user.id,
       action: 'UPDATE_THRESHOLD',
       module: 'INVENTORY',
-      details: `Mengupdate threshold minimum ke ${minThreshold} untuk ${siteId === 'ALL' ? 'Semua Site' : 'Site ID ' + siteId}`
+      details: `Mengupdate threshold untuk ${siteId === 'ALL' ? 'Semua Site' : 'Site ID ' + siteId}`
     });
     
     res.json({ success: true, message: 'Threshold berhasil diperbarui' });
@@ -98,7 +100,7 @@ exports.updateStock = async (req, res) => {
 exports.upsertMaterial = async (req, res) => {
   const t = await sequelize.transaction();
   try {
-    const { id, sku, itemCode, name, category, specs, stock, siteId, minThreshold } = req.body;
+    const { id, sku, itemCode, name, category, specs, stock, siteId, minThreshold, warningThreshold, criticalThreshold } = req.body;
     
     // Handle file upload if present
     let imagePath = req.body.image; // Use existing image if no new file uploaded
@@ -129,15 +131,24 @@ exports.upsertMaterial = async (req, res) => {
     if (siteId) {
       const [inventory, created] = await Inventory.findOrCreate({
         where: { materialId: material.id, siteId },
-        defaults: { stock: stock || 0, minThreshold: minThreshold || 10 },
+        defaults: { 
+          stock: stock || 0, 
+          minThreshold: minThreshold || 10,
+          warningThreshold: warningThreshold || 20,
+          criticalThreshold: criticalThreshold || 10
+        },
         transaction: t
       });
 
       if (!created) {
-        await inventory.update({ 
-          stock: stock !== undefined ? stock : inventory.stock, 
-          minThreshold: minThreshold !== undefined ? minThreshold : inventory.minThreshold 
-        }, { transaction: t });
+        const updateData = { 
+          stock: stock !== undefined ? stock : inventory.stock
+        };
+        if (minThreshold !== undefined) updateData.minThreshold = minThreshold;
+        if (warningThreshold !== undefined) updateData.warningThreshold = warningThreshold;
+        if (criticalThreshold !== undefined) updateData.criticalThreshold = criticalThreshold;
+        
+        await inventory.update(updateData, { transaction: t });
       }
     }
 
@@ -227,7 +238,23 @@ exports.getAlerts = async (req, res) => {
       ],
       order: [['createdAt', 'DESC']]
     });
-    res.json({ success: true, data: alerts });
+    
+    // Get inventory data for each alert
+    const alertsWithInventory = await Promise.all(alerts.map(async (alert) => {
+      const alertData = alert.toJSON();
+      const inventory = await Inventory.findOne({
+        where: { materialId: alert.materialId, siteId: alert.siteId }
+      });
+      
+      if (inventory) {
+        alertData.warningThreshold = inventory.warningThreshold || inventory.minThreshold || 20;
+        alertData.criticalThreshold = inventory.criticalThreshold || inventory.minThreshold || 10;
+      }
+      
+      return alertData;
+    }));
+    
+    res.json({ success: true, data: alertsWithInventory });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -358,7 +385,19 @@ exports.getAlertById = async (req, res) => {
       ]
     });
     if (!alert) return res.status(404).json({ success: false, message: 'Alert tidak ditemukan' });
-    res.json({ success: true, data: alert });
+    
+    // Get inventory data for thresholds
+    const inventory = await Inventory.findOne({
+      where: { materialId: alert.materialId, siteId: alert.siteId }
+    });
+    
+    const alertData = alert.toJSON();
+    if (inventory) {
+      alertData.warningThreshold = inventory.warningThreshold || inventory.minThreshold || 20;
+      alertData.criticalThreshold = inventory.criticalThreshold || inventory.minThreshold || 10;
+    }
+    
+    res.json({ success: true, data: alertData });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

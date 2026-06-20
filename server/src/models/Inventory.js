@@ -14,6 +14,14 @@ const Inventory = sequelize.define('Inventory', {
   minThreshold: {
     type: DataTypes.INTEGER,
     defaultValue: 10,
+  },
+  warningThreshold: {
+    type: DataTypes.INTEGER,
+    defaultValue: 20,
+  },
+  criticalThreshold: {
+    type: DataTypes.INTEGER,
+    defaultValue: 10,
   }
 }, {
   indexes: [

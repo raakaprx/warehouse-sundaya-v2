@@ -92,25 +92,25 @@ const seed = async () => {
     });
 
     // Inventory
-    await Inventory.create({ siteId: pusat.id, materialId: shs.id, stock: 100, minThreshold: 20 });
-    await Inventory.create({ siteId: papua.id, materialId: shs.id, stock: 15, minThreshold: 10 });
-    await Inventory.create({ siteId: maluku.id, materialId: shs.id, stock: 8, minThreshold: 10 });
-    await Inventory.create({ siteId: pusat.id, materialId: battery.id, stock: 50, minThreshold: 10 });
-    await Inventory.create({ siteId: pusat.id, materialId: panel100.id, stock: 80, minThreshold: 20 });
-    await Inventory.create({ siteId: papua.id, materialId: panel100.id, stock: 12, minThreshold: 10 });
-    await Inventory.create({ siteId: maluku.id, materialId: panel100.id, stock: 9, minThreshold: 10 });
-    await Inventory.create({ siteId: pusat.id, materialId: inverter.id, stock: 25, minThreshold: 5 });
-    await Inventory.create({ siteId: papua.id, materialId: inverter.id, stock: 6, minThreshold: 5 });
-    await Inventory.create({ siteId: maluku.id, materialId: inverter.id, stock: 4, minThreshold: 5 });
-    await Inventory.create({ siteId: pusat.id, materialId: controller.id, stock: 60, minThreshold: 15 });
-    await Inventory.create({ siteId: papua.id, materialId: controller.id, stock: 10, minThreshold: 8 });
-    await Inventory.create({ siteId: maluku.id, materialId: controller.id, stock: 7, minThreshold: 8 });
-    await Inventory.create({ siteId: pusat.id, materialId: lamp.id, stock: 200, minThreshold: 30 });
-    await Inventory.create({ siteId: papua.id, materialId: lamp.id, stock: 40, minThreshold: 20 });
-    await Inventory.create({ siteId: maluku.id, materialId: lamp.id, stock: 35, minThreshold: 20 });
-    await Inventory.create({ siteId: pusat.id, materialId: cable.id, stock: 150, minThreshold: 25 });
-    await Inventory.create({ siteId: papua.id, materialId: cable.id, stock: 30, minThreshold: 15 });
-    await Inventory.create({ siteId: maluku.id, materialId: cable.id, stock: 25, minThreshold: 15 });
+    await Inventory.create({ siteId: pusat.id, materialId: shs.id, stock: 100, minThreshold: 20, warningThreshold: 20, criticalThreshold: 10 });
+    await Inventory.create({ siteId: papua.id, materialId: shs.id, stock: 15, minThreshold: 10, warningThreshold: 20, criticalThreshold: 10 });
+    await Inventory.create({ siteId: maluku.id, materialId: shs.id, stock: 8, minThreshold: 10, warningThreshold: 20, criticalThreshold: 10 });
+    await Inventory.create({ siteId: pusat.id, materialId: battery.id, stock: 50, minThreshold: 10, warningThreshold: 20, criticalThreshold: 10 });
+    await Inventory.create({ siteId: pusat.id, materialId: panel100.id, stock: 80, minThreshold: 20, warningThreshold: 20, criticalThreshold: 10 });
+    await Inventory.create({ siteId: papua.id, materialId: panel100.id, stock: 12, minThreshold: 10, warningThreshold: 20, criticalThreshold: 10 });
+    await Inventory.create({ siteId: maluku.id, materialId: panel100.id, stock: 9, minThreshold: 10, warningThreshold: 20, criticalThreshold: 10 });
+    await Inventory.create({ siteId: pusat.id, materialId: inverter.id, stock: 25, minThreshold: 5, warningThreshold: 5, criticalThreshold: 2 });
+    await Inventory.create({ siteId: papua.id, materialId: inverter.id, stock: 6, minThreshold: 5, warningThreshold: 5, criticalThreshold: 2 });
+    await Inventory.create({ siteId: maluku.id, materialId: inverter.id, stock: 4, minThreshold: 5, warningThreshold: 5, criticalThreshold: 2 });
+    await Inventory.create({ siteId: pusat.id, materialId: controller.id, stock: 60, minThreshold: 15, warningThreshold: 15, criticalThreshold: 8 });
+    await Inventory.create({ siteId: papua.id, materialId: controller.id, stock: 10, minThreshold: 8, warningThreshold: 15, criticalThreshold: 8 });
+    await Inventory.create({ siteId: maluku.id, materialId: controller.id, stock: 7, minThreshold: 8, warningThreshold: 15, criticalThreshold: 8 });
+    await Inventory.create({ siteId: pusat.id, materialId: lamp.id, stock: 200, minThreshold: 30, warningThreshold: 30, criticalThreshold: 15 });
+    await Inventory.create({ siteId: papua.id, materialId: lamp.id, stock: 40, minThreshold: 20, warningThreshold: 30, criticalThreshold: 15 });
+    await Inventory.create({ siteId: maluku.id, materialId: lamp.id, stock: 35, minThreshold: 20, warningThreshold: 30, criticalThreshold: 15 });
+    await Inventory.create({ siteId: pusat.id, materialId: cable.id, stock: 150, minThreshold: 25, warningThreshold: 25, criticalThreshold: 12 });
+    await Inventory.create({ siteId: papua.id, materialId: cable.id, stock: 30, minThreshold: 15, warningThreshold: 25, criticalThreshold: 12 });
+    await Inventory.create({ siteId: maluku.id, materialId: cable.id, stock: 25, minThreshold: 15, warningThreshold: 25, criticalThreshold: 12 });
 
     // Dummy Material Requests (10 data for flow visualization)
     const requests = [
