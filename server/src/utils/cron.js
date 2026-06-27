@@ -373,22 +373,27 @@ const runThresholdCheck = async () => {
   }
 };
 
+// const runBackup = async () => {
+//   try {
+//     // 
+//     // const source = path.join(__dirname, '../../database.sqlite');
+//     const backupDir = path.join(__dirname, '../../backups');
+//     if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+//     const timestamp = new Date().toISOString().replaceAll(':', '-').replaceAll('.', '-');
+//     const target = path.join(backupDir, `database-${timestamp}.sqlite`);
+//     fs.copyFileSync(source, target);
+//     console.log(`[${new Date().toISOString()}] Backup database berhasil: ${target}`);
+//   } catch (error) {
+//     console.error('Error backup database:', error);
+//   }
+// };//
+
 const runBackup = async () => {
-  try {
-    const source = path.join(__dirname, '../../database.sqlite');
-    const backupDir = path.join(__dirname, '../../backups');
-    if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
-    const timestamp = new Date().toISOString().replaceAll(':', '-').replaceAll('.', '-');
-    const target = path.join(backupDir, `database-${timestamp}.sqlite`);
-    fs.copyFileSync(source, target);
-    console.log(`[${new Date().toISOString()}] Backup database berhasil: ${target}`);
-  } catch (error) {
-    console.error('Error backup database:', error);
-  }
-};
+   console.log("Backup MySQL menggunakan mysqldump");
+}
 
 // Schedule as fallback safety check
 cron.schedule('*/5 * * * *', runThresholdCheck);
-cron.schedule('0 2 * * *', runBackup);
+// cron.schedule('0 2 * * *', runBackup);
 
 module.exports = { runThresholdCheck, runBackup, ensureAlertSchema };

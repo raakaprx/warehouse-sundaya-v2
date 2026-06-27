@@ -97,6 +97,8 @@ const initDB = async () => {
   try {
     await sequelize.authenticate();
     console.log('✅ Database connection established successfully.');
+    await sequelize.sync({ alter: true });
+    console.log("✅ Database Synced");  
     
     if (process.env.NODE_ENV !== 'production' && process.env.SEED_DB === 'true') {
       let shouldSeed = true;
