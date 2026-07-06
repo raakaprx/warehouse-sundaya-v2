@@ -71,7 +71,7 @@ function App() {
         <Route path="/inventory-usage" element={<InventoryUsage />} />
         <Route path="/alerts" element={<SystemAlerts />} />
         <Route path="/notifications" element={<Notifications />} />
-        <Route path="/logs" element={<AuditLogs />} />
+        <Route path="/logs" element={<ProtectedRoute allowedRoles={['GM', 'PROGRAMMER']}><AuditLogs /></ProtectedRoute>} />
         <Route path="/shipping" element={<ShippingControl />} />
         <Route path="/settings" element={<Settings />} />
 

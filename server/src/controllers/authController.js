@@ -1,9 +1,28 @@
+/**
+ * ============================================================================
+ * AUTH CONTROLLER - Login & User Management
+ * ============================================================================
+ * Fungsi: Menangani autentikasi user (login) dan manajemen profil user
+ * 
+ * Alur Login: 1) Terima username/password dari frontend
+ *             2) Query user dari database
+ *             3) Compare password dengan bcrypt
+ *             4) Jika valid, sign JWT token
+ *             5) Return token + user info
+ * ============================================================================
+ */
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { User, Site, AuditLog } = require('../models');
 
 const SECRET_KEY = process.env.JWT_SECRET;
 
+/**
+ * LOGIN ENDPOINT
+ * POST /api/auth/login
+ * Body: { username, password }
+ * Response: { token, user: { id, username, role, site, siteId } }
+ */
 exports.login = async (req, res) => {
   try {
     if (!SECRET_KEY) {
@@ -11,9 +30,7 @@ exports.login = async (req, res) => {
     }
     const { username, password } = req.body;
 
-    
-    //console.log('Login Attempt:', { email: req.body.email, timestamp: new Date() });
-
+    // ⬇️ 1) Cari user di database (include Site relationship)
     const user = await User.findOne({ 
       where: { username },
       include: [{ model: Site }]
@@ -26,6 +43,8 @@ exports.login = async (req, res) => {
       });
     }
 
+    // ⬇️ 2) Compare password dengan hash di database
+    // Kenapa bcrypt: one-way hashing, tidak bisa di-reverse, lebih aman
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({ 
@@ -34,7 +53,7 @@ exports.login = async (req, res) => {
       });
     }
 
-    // Log the login activity
+    // ⬇️ 3) Log login activity untuk audit trail
     await AuditLog.create({
       userId: user.id,
       action: 'LOGIN',
@@ -42,6 +61,9 @@ exports.login = async (req, res) => {
       details: `User ${user.username} (${user.role}) login ke sistem`
     });
 
+    // ⬇️ 4) Sign JWT token (valid 24 jam)
+    // Token payload: id, role, username, site, siteId
+    // Digunakan di frontend untuk identify user dan check role
     const token = jwt.sign(
       { 
         id: user.id, 
@@ -54,6 +76,7 @@ exports.login = async (req, res) => {
       { expiresIn: '24h' }
     );
 
+    // ⬇️ 5) Return token dan user info
     res.json({ 
       success: true,
       token, 

@@ -16,7 +16,7 @@ const {
 
 // ✅ Routes (CORS handled globally in index.js)
 router.get('/stats', authMiddleware(['GM', 'NOC', 'PROGRAMMER', 'OM']), getGlobalStats);
-router.get('/executive', authMiddleware(['GM', 'PROGRAMMER']), getExecutiveReport);
+router.get('/executive', authMiddleware(['GM', 'NOC', 'PROGRAMMER']), getExecutiveReport);
 router.get('/notes', authMiddleware(['GM', 'NOC', 'PROGRAMMER', 'OM']), getExecutiveNotes);
 router.post('/notes', authMiddleware(['GM', 'PROGRAMMER']), createExecutiveNote);
 router.delete('/notes/:id', authMiddleware(['GM', 'PROGRAMMER']), deleteExecutiveNote);

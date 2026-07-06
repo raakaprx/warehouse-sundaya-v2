@@ -76,7 +76,7 @@ router.patch('/alerts/:id/read', authMiddleware(['NOC', 'GM', 'PROGRAMMER', 'OM'
 router.patch('/alerts/:id/viewed', authMiddleware(['NOC', 'GM', 'PROGRAMMER', 'OM']), markAlertViewed);
 router.patch('/alerts/:id/resolve', authMiddleware(['NOC', 'GM', 'PROGRAMMER', 'OM']), resolveAlert);
 router.patch('/alerts/:id/resolve-with-reason', authMiddleware(['NOC', 'GM', 'PROGRAMMER', 'OM']), resolveAlertWithReason);
-router.get('/audit-logs', authMiddleware(['NOC', 'GM', 'PROGRAMMER', 'OM']), getLogs);
+router.get('/audit-logs', authMiddleware(['GM', 'PROGRAMMER']), getLogs);
 router.get('/shipments', authMiddleware(['NOC', 'GM', 'OM', 'PROGRAMMER']), getShipments);
 router.get('/movements', authMiddleware(['NOC', 'GM', 'OM', 'PROGRAMMER']), getStockMovements);
 

@@ -1,3 +1,38 @@
+/**
+ * ============================================================================
+ * CRON JOBS - Automated Background Stock Monitoring
+ * ============================================================================
+ * Fungsi: Menjalankan automated background job untuk deteksi stok rendah
+ * 
+ * Task: runThresholdCheck() dijalankan setiap 1 menit (via node-cron)
+ * 
+ * Alasan gunakan CRON vs Real-time?
+ * ❌ Real-time check: Setiap stok berubah, check threshold → boros CPU
+ * ✅ Cron schedule: Check setiap 1 menit, lebih efisien dan predictable
+ * 
+ * Flow Automated Detection:
+ * 1. Query semua Inventory (semua site + material)
+ * 2. Bandingkan stock vs warningThreshold vs criticalThreshold
+ * 3. Tentukan alert level: NORMAL / WARNING_STOCK / CRITICAL_STOCK / OUT_OF_STOCK
+ * 4. Jika ada Alert ACTIVE sebelumnya:
+ *    - Jika level berubah → resolve Alert lama, create Alert baru
+ *    - Jika >12h di level CRITICAL tanpa resolve → escalate ke OM
+ *    - Jika >24h di level CRITICAL tanpa resolve → escalate ke GM
+ * 5. Create Notification untuk user yang relevan (OM, NOC, GM)
+ * 6. Send Email notification
+ * 7. Emit Socket event real-time
+ * 
+ * Escalation Logic:
+ * - Fresh Alert: Send ke NOC + GM (aware)
+ * - >12h unresolved: Escalate ke OM (action required)
+ * - >24h unresolved: Escalate ke GM (urgent action required)
+ * 
+ * Why Separate Thresholds?
+ * - warningThreshold: Stok mulai menurun, but acceptable (still operational)
+ * - criticalThreshold: Stok sangat rendah, harus order segera
+ * - Dual threshold memungkinkan gradual alert escalation
+ * ============================================================================
+ */
 const cron = require('node-cron');
 const fs = require('fs');
 const path = require('path');
@@ -7,6 +42,16 @@ const { getIO } = require('../utils/socket');
 const { sendEmail } = require('../utils/emailService');
 
 let schemaEnsured = false;
+
+/**
+ * ENSURE ALERT SCHEMA: Database migration untuk warning/critical threshold
+ * Dijalankan: Pertama kali runThresholdCheck dipanggil
+ * 
+ * Kenapa perlu?
+ * - Tambah column warningThreshold, criticalThreshold ke Inventories
+ * - Tambah field escalation tracking ke Alerts
+ * - Pastikan semua table siap sebelum check threshold
+ */
 
 const ensureAlertSchema = async () => {
   if (schemaEnsured) return;
@@ -60,19 +105,39 @@ const ensureAlertSchema = async () => {
   schemaEnsured = true;
 };
 
+// ⬇️ HELPER: Determine alert severity level based on stock vs thresholds
+/**
+ * COMPUTE ALERT LEVEL
+ * 
+ * Logika:
+ * - OUT_OF_STOCK (priority CRITICAL): stok <= 0 → urgent!
+ * - CRITICAL_STOCK (priority CRITICAL): stok <= critical threshold → order sekarang!
+ * - WARNING_STOCK (priority WARNING): stok <= warning threshold → monitor
+ * - NORMAL_STOCK (priority WARNING): stok ok
+ * 
+ * Contoh:
+ * - Material X: stock=5, warning=20, critical=10
+ *   → current 5 <= critical 10 → CRITICAL_STOCK
+ * - Material Y: stock=15, warning=20, critical=10
+ *   → current 15 <= warning 20 but > critical 10 → WARNING_STOCK
+ * - Material Z: stock=25, warning=20, critical=10
+ *   → current 25 > warning 20 → NORMAL_STOCK
+ */
 const getAlertLevel = (stock, warningThreshold, criticalThreshold) => {
   const current = Number(stock || 0);
   const warning = Number(warningThreshold || 0);
   const critical = Number(criticalThreshold || 0);
   
+  // ⬇️ 1) OUT OF STOCK: emergency
   if (current <= 0) {
     return {
-      type: 'OUT_OF_STOCK',
+      type: 'OUT_OF_STOCK', // ⬅️ Alert type
       priority: 'CRITICAL',
       status: 'LOW'
     };
   }
-  // Critical: stock <= critical threshold
+  
+  // ⬇️ 2) CRITICAL: stok di bawah critical threshold
   if (current <= critical) {
     return {
       type: 'CRITICAL_STOCK',
@@ -80,7 +145,8 @@ const getAlertLevel = (stock, warningThreshold, criticalThreshold) => {
       status: 'LOW'
     };
   }
-  // Warning: stock <= warning threshold and > critical threshold
+  
+  // ⬇️ 3) WARNING: stok antara critical dan warning
   if (current <= warning) {
     return {
       type: 'WARNING_STOCK',
@@ -88,6 +154,8 @@ const getAlertLevel = (stock, warningThreshold, criticalThreshold) => {
       status: 'WARNING'
     };
   }
+  
+  // ⬇️ 4) NORMAL: stok di atas warning threshold (ok)
   return {
     type: 'NORMAL_STOCK',
     priority: 'WARNING',
@@ -95,17 +163,36 @@ const getAlertLevel = (stock, warningThreshold, criticalThreshold) => {
   };
 };
 
+
+// ⬇️ HELPER: Get alert recipients based on alert type and escalation level
+/**
+ * DETERMINE ALERT RECIPIENTS
+ * 
+ * Scenario 1: New Alert (escalationLevel = null)
+ * - Send ke: NOC, GM, PROGRAMMER (aware semua), + OM site tsb (action)
+ * 
+ * Scenario 2: Escalate to OM (escalationLevel = 'OM')
+ * - Send ke: OM site tsb (take action, urgent)
+ * 
+ * Scenario 3: Escalate to GM (escalationLevel = 'GM')
+ * - Send ke: GM (urgent, high-level decision)
+ */
 const getAlertRecipients = async (siteId, escalationLevel = null) => {
   let where = {};
   
+  // ⬇️ Escalation level OM: kirim ke OM site tsb
   if (escalationLevel === 'OM') {
     where = {
       role: 'OM',
       siteId: siteId
     };
-  } else if (escalationLevel === 'GM') {
+  } 
+  // ⬇️ Escalation level GM: kirim ke semua GM
+  else if (escalationLevel === 'GM') {
     where = { role: 'GM' };
-  } else {
+  } 
+  // ⬇️ New alert: kirim ke NOC, GM, PROGRAMMER + OM site tsb
+  else {
     where = {
       [Op.or]: [
         { role: { [Op.in]: ['NOC', 'GM', 'PROGRAMMER'] } },
@@ -117,8 +204,19 @@ const getAlertRecipients = async (siteId, escalationLevel = null) => {
   return User.findAll({ where });
 };
 
+
+// ⬇️ HELPER: Send notification to multiple users (DB + Email + Socket)
+/**
+ * SEND ALERT NOTIFICATIONS
+ * 
+ * For each user:
+ * 1. Create Notification di DB (agar bisa dilihat di notification panel)
+ * 2. Send Email (instant alert)
+ * 3. Emit Socket event (real-time UI update)
+ */
 const sendAlertNotifications = async (users, type, message, alertId, metadata) => {
   for (const user of users) {
+    // ⬇️ 1) Save to DB
     await Notification.create({
       userId: user.id,
       alertId,
@@ -126,26 +224,62 @@ const sendAlertNotifications = async (users, type, message, alertId, metadata) =
       message,
       metadata: JSON.stringify(metadata || {})
     });
+    
+    // ⬇️ 2) Send Email
     if (user.email) {
       sendEmail(user.email, type.replaceAll('_', ' '), message);
     }
   }
 };
 
+/**
+ * RUN THRESHOLD CHECK - MAIN FUNCTION
+ * 
+ * Jadwal: Setiap 1 menit via CronJob (see bottom of file)
+ * 
+ * Alur Lengkap:
+ * 1. Ensure schema (first run only): migrate database if needed
+ * 2. Query semua Inventory dari semua site
+ * 3. Loop setiap item:
+ *    a) Calculate alert level (NORMAL / WARNING / CRITICAL / OUT_OF_STOCK)
+ *    b) Check active alert sebelumnya
+ *    c) Jika level berbeda: resolve alert lama, create alert baru
+ *    d) Jika alert sudah >12h: escalate ke OM
+ *    e) Jika alert sudah >24h: escalate ke GM
+ *    f) Send notifikasi + email + socket emit
+ * 4. Emit socket event untuk refresh dashboard
+ * 
+ * Contoh Scenario:
+ * - T=0min: Stock=5, Critical=10 → Create CRITICAL_STOCK alert
+ * - T=15min: Still stock=5 → Alert still active, no action
+ * - T=13h: Still stock=5, alert active >12h → Escalate to OM
+ * - T=25h: Still stock=5, alert active >24h → Escalate to GM (urgent!)
+ * - T=30h: Stock now=50 (restock) → Resolve alert, create NORMAL notification
+ */
 const runThresholdCheck = async () => {
   console.log(`[${new Date().toISOString()}] Running automated threshold check...`);
   try {
+    // ⬇️ 1) Ensure schema ready
     await ensureAlertSchema();
+    
+    // ⬇️ 2) Query semua inventory
     const allItems = await Inventory.findAll({
       include: [Material, Site]
     });
+    
     const io = getIO();
     const now = new Date();
 
+    // ⬇️ 3) Loop: check setiap item
     for (const item of allItems) {
+      // ⬇️ Get threshold values
       const warningThresh = item.warningThreshold || item.minThreshold || 20;
       const criticalThresh = item.criticalThreshold || item.minThreshold || 10;
+      
+      // ⬇️ Calculate current level
       const level = getAlertLevel(item.stock, warningThresh, criticalThresh);
+      
+      // ⬇️ Get previous active alert
       const activeAlert = await Alert.findOne({
         where: {
           materialId: item.materialId,

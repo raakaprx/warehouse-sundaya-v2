@@ -69,7 +69,7 @@ const Sidebar = ({ isOpen = true, onClose }) => {
       items: [
         { name: 'Notifications', path: '/notifications', icon: <FiBell />, showNotificationBadge: true, roles: ['GM', 'NOC', 'OM', 'PROGRAMMER'] },
         { name: 'System Alerts', path: '/alerts', icon: <FiAlertCircle />, showAlert: true, roles: ['GM', 'NOC', 'PROGRAMMER'] },
-        { name: 'Audit Logs', path: '/logs', icon: <FiActivity />, roles: ['GM', 'NOC', 'PROGRAMMER'] },
+        { name: 'Audit Logs', path: '/logs', icon: <FiActivity />, roles: ['GM', 'PROGRAMMER'] },
         { name: 'Settings', path: '/settings', icon: <FiSettings />, roles: ['GM', 'NOC', 'OM', 'PROGRAMMER'] }
       ]
     }

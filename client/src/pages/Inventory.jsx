@@ -12,6 +12,7 @@ const Inventory = () => {
   const [items, setItems] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSite, setSelectedSite] = useState('All');
+  const [selectedAlert, setSelectedAlert] = useState('All');
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
@@ -201,12 +202,28 @@ const Inventory = () => {
     }
   };
 
+  const getStockStatus = (item) => {
+    const warning = item.warningThreshold || item.minThreshold || 20;
+    const critical = item.criticalThreshold || item.minThreshold || 10;
+    
+    if (item.stock <= critical) return 'Critical';
+    if (item.stock <= warning) return 'Warning';
+    return 'Safe';
+  };
+
   const filteredItems = items.filter(item => {
     const searchLower = searchTerm.toLowerCase();
     const nameMatch = (item.Material?.name || item.name || '').toLowerCase().includes(searchLower);
     const skuMatch = (item.Material?.sku || item.sku || '').toLowerCase().includes(searchLower);
     const specsMatch = (item.Material?.specs || item.specs || '').toLowerCase().includes(searchLower);
-    return nameMatch || skuMatch || specsMatch;
+    const searchMatch = nameMatch || skuMatch || specsMatch;
+
+    if (selectedAlert === 'All') {
+      return searchMatch;
+    }
+    
+    const status = getStockStatus(item);
+    return searchMatch && status === selectedAlert;
   });
 
   return (
@@ -240,7 +257,7 @@ const Inventory = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <div className="flex gap-4 w-full lg:w-auto">
+        <div className="flex flex-wrap gap-4 w-full lg:w-auto">
           <div className="flex items-center gap-3 px-6 py-4 bg-slate-50 rounded-2xl border border-transparent">
             <FiFilter className="text-slate-400" size={18} />
             <select 
@@ -252,6 +269,20 @@ const Inventory = () => {
               {(sites.length ? sites : fallbackSites).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </div>
+          {(user?.role === 'NOC' || user?.role === 'GM') && (
+            <div className="flex items-center gap-3 px-6 py-4 bg-slate-50 rounded-2xl border border-transparent">
+              <FiAlertTriangle className="text-slate-400" size={18} />
+              <select 
+                className="bg-transparent text-sm font-black text-slate-600 focus:outline-none uppercase tracking-widest cursor-pointer"
+                value={selectedAlert}
+                onChange={(e) => setSelectedAlert(e.target.value)}
+              >
+                <option value="All">All Stock</option>
+                <option value="Critical">Critical Only</option>
+                <option value="Warning">Warning Only</option>
+              </select>
+            </div>
+          )}
         </div>
       </div>
 
@@ -280,7 +311,7 @@ const Inventory = () => {
                 ) : (
                   <FiPackage size={48} className="text-slate-200" />
                 )}
-                <div className="absolute top-4 left-4">
+                <div className="absolute top-4 left-4 flex gap-2">
                   <span className={clsx(
                     "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border shadow-sm",
                     item.Site?.name === 'Pusat' ? "bg-red-50 text-red-600 border-red-100" :
@@ -288,6 +319,14 @@ const Inventory = () => {
                     "bg-amber-50 text-amber-600 border-amber-100"
                   )}>
                     {item.Site?.name || 'Local'}
+                  </span>
+                  <span className={clsx(
+                    "px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border shadow-sm",
+                    getStockStatus(item) === 'Critical' ? "bg-red-600 text-white border-red-700" :
+                    getStockStatus(item) === 'Warning' ? "bg-amber-500 text-white border-amber-600" :
+                    "bg-emerald-500 text-white border-emerald-600"
+                  )}>
+                    {getStockStatus(item)}
                   </span>
                 </div>
                 {(user?.role === 'NOC' || user?.role === 'PROGRAMMER') && (
@@ -317,7 +356,8 @@ const Inventory = () => {
                     <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Current Stock</p>
                     <p className={clsx(
                       "text-sm font-black",
-                      item.stock < item.minThreshold ? "text-red-600" : "text-emerald-600"
+                      getStockStatus(item) === 'Critical' ? "text-red-600" :
+                      getStockStatus(item) === 'Warning' ? "text-amber-600" : "text-emerald-600"
                     )}>
                       {item.stock} <span className="text-[10px] uppercase font-bold text-slate-400">Units</span>
                     </p>

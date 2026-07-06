@@ -1,3 +1,36 @@
+/**
+ * ============================================================================
+ * DASHBOARD LAYOUT - Real-time Socket.IO Updates
+ * ============================================================================
+ * Fungsi: Main layout dengan sidebar + socket listener untuk instant updates
+ * 
+ * Socket Events Listened:
+ * - new_material_request: Material request baru dibuat
+ * - request_shipped: Material sedang dikirim (NOC ship barang)
+ * - request_reviewed: Material di-review NOC
+ * - request_approved: Material di-approve GM
+ * - request_rejected: Material di-reject
+ * - inventory_updated: Stok berubah (adjustment/transfer/ship/receive)
+ * - new_alert: Stock threshold alert baru
+ * - alert_resolved: Stock alert resolved
+ * 
+ * Pattern: Window Events (custom)
+ * - Socket event → dispatchEvent('mr_flow_update')
+ * - Listeners component catch event → refetch data
+ * - Why? Decoupling: DashboardLayout tidak perlu tahu component detail
+ * - Alternative: Context/Redux (overkill untuk real-time pattern)
+ * 
+ * Features:
+ * - Request Feed: List material request dengan status (pagination)
+ * - Alert Feed: List stock alerts dengan toast notification
+ * - Toast Notification: new_alert trigger visual toast dengan action
+ * - Dismissed Tracking: Prevent duplicate toast (ref.Set)
+ * - Mobile Responsive: Feed panels bisa collapse (mobile UX)
+ * 
+ * Security: Socket tidak butuh auth (server validate by room kalau perlu)
+ * Real-time: Socket emit trigger instant UI update (no polling)
+ * ============================================================================
+ */
 import React, { useEffect, useRef, useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
@@ -10,7 +43,9 @@ import { FiFlag, FiMenu, FiX, FiMessageSquare, FiAlertTriangle } from 'react-ico
 const DashboardLayout = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const dismissedAlertToastRef = useRef(new Set());
+  
+  // ⬇️ FEED STATE: store request + alert list untuk display
+  const dismissedAlertToastRef = useRef(new Set()); // ⬅️ Prevent duplicate toast
   const [requestFeed, setRequestFeed] = useState([]);
   const [requestFeedLoading, setRequestFeedLoading] = useState(true);
   const [isRequestMobileOpen, setIsRequestMobileOpen] = useState(false);
@@ -25,6 +60,10 @@ const DashboardLayout = () => {
   const requestItemsPerPage = 5;
   const requestSeenStorageKey = user?.id ? `request_monitor_seen_${user.id}` : '';
 
+  /**
+   * HELPER: Format status ke label Indonesia
+   * Used in request feed untuk display
+   */
   const getStatusLabel = (status) => {
     const labels = {
       PENDING: 'Menunggu NOC',
@@ -40,11 +79,17 @@ const DashboardLayout = () => {
     return labels[status] || status;
   };
 
+  /**
+   * HELPER: Get UI config (badge color, label) untuk urgency
+   */
   const getUrgencyConfig = (urgency) => {
     if (urgency === 'CRITICAL') return { label: 'Critical', badge: 'bg-red-50 text-red-600 border-red-200', flag: 'text-red-600' };
     return { label: 'Penting', badge: 'bg-amber-50 text-amber-600 border-amber-200', flag: 'text-amber-600' };
   };
 
+  /**
+   * HELPER: Get UI config untuk alert priority
+   */
   const getAlertPriorityConfig = (priority) => {
     if (priority === 'CRITICAL') {
       return { badge: 'bg-red-50 text-red-600 border-red-200', label: 'Kritis' };
@@ -52,6 +97,30 @@ const DashboardLayout = () => {
     return { badge: 'bg-amber-50 text-amber-600 border-amber-200', label: 'Peringatan' };
   };
 
+  /**
+   * HELPER: Get version number untuk request (used untuk track unread status)
+   * Version = timestamp dari last update (atau creation time)
+   * Used by: requestSeenMap untuk detect apakah request sudah dibaca atau ada update baru
+   * 
+   * Alur:
+   * - User lihat request → save timestamp ke requestSeenMap[requestId]
+   * - Request update → new version > old version → mark as unread
+   * - Next time user load page → requestSeenMap vs getRequestVersion → detect unread
+   * 
+   * Kenapa timestamp?
+   * - Simple version tracking (tidak butuh explicit version field di database)
+   * - JavaScript Date.getTime() parse dari updatedAt ISO string
+   * - Accurate untuk detect change (millisecond precision)
+   */
+  const getRequestVersion = (request) => {
+    // ⬇️ Parse updatedAt timestamp atau fallback ke createdAt
+    const timestamp = request?.updatedAt || request?.createdAt;
+    if (!timestamp) return 0;
+    // ⬇️ Convert ISO date string ke milliseconds (version number)
+    return new Date(timestamp).getTime();
+  };
+
+  // ⬇️ Status filter options untuk dropdown
   const statusFilterOptions = [
     { value: 'ALL', label: 'Semua Status' },
     { value: 'PENDING', label: 'Menunggu NOC' },
@@ -65,47 +134,96 @@ const DashboardLayout = () => {
     { value: 'CANCELLED', label: 'Dibatalkan' }
   ];
 
-  const getRequestVersion = (req) => new Date(req.updatedAt || req.createdAt || Date.now()).getTime();
 
+  /**
+   * SOCKET.IO SETUP - Listen untuk real-time events dari backend
+   * 
+   * Pattern:
+   * 1. Connect ke socket server (http://localhost:5000)
+   * 2. Subscribe ke events: new_material_request, request_shipped, etc.
+   * 3. On event: trigger custom window event
+   * 4. Components listening window event → refetch data
+   * 
+   * Custom Window Event Pattern (vs direct state update):
+   * ✅ Decoupled: DashboardLayout tidak tahu component mana yang listening
+   * ✅ Scalable: Can have multiple listeners
+   * ✅ Clean: One source of truth (socket listener)
+   * ❌ Alternative: Lift state up (prop drilling), Context (overkill)
+   * 
+   * Events:
+   * - new_material_request: OM buat request baru
+   * - request_shipped: NOC kirim material (stok update)
+   * - request_reviewed: NOC review request
+   * - request_approved: GM approve request
+   * - request_rejected: Siapa reject request
+   * - inventory_updated: Stok berubah (inventory page)
+   * - new_alert: Stock threshold triggered
+   * - alert_resolved: Alert sudah di-resolve
+   * 
+   * Toast Notification:
+   * - new_alert + alert_resolved trigger custom toast
+   * - Dismissed tracking prevent duplicate (ref.Set store alertId)
+   * - Click toast → navigate /alerts (action)
+   * 
+   * RBAC: Notification filter by user.role (only relevant roles get toast)
+   */
   useEffect(() => {
-    if (!user) return;
+    if (!user) return; // ⬅️ Wait until auth loaded
 
+    // ⬇️ Connect to socket server
     const socket = io('http://localhost:5000');
     
+    // ⬇️ Log connection status
     socket.on('connect', () => {
       console.log('Connected to WebSocket');
     });
 
+    // ⬇️ REQUEST WORKFLOW EVENTS
+    // Event: Material request baru dibuat
     socket.on('new_material_request', (data) => {
       window.dispatchEvent(new Event('mr_new_request'));
       window.dispatchEvent(new Event('mr_flow_update'));
     });
 
+    // Event: NOC ship barang (stok berubah)
     socket.on('request_shipped', (data) => {
       window.dispatchEvent(new Event('mr_flow_update'));
     });
 
+    // Event: NOC review request
     socket.on('request_reviewed', (data) => {
       window.dispatchEvent(new Event('mr_flow_update'));
     });
 
+    // Event: GM approve request (siap ship)
     socket.on('request_approved', (data) => {
       window.dispatchEvent(new Event('mr_flow_update'));
     });
 
+    // Event: Request di-reject
     socket.on('request_rejected', (data) => {
       window.dispatchEvent(new Event('mr_flow_update'));
     });
 
+    // ⬇️ INVENTORY EVENTS
+    // Event: Stok berubah (adjustment/transfer/ship/receive)
     socket.on('inventory_updated', () => {
       window.dispatchEvent(new Event('inventory_updated'));
     });
 
+    // ⬇️ ALERT EVENTS
+    // Event: Stock threshold triggered (new alert)
     socket.on('new_alert', (data) => {
       window.dispatchEvent(new Event('alerts_updated'));
+      
+      // ⬇️ Show toast notification (only for relevant roles)
       if (user.role === 'NOC' || user.role === 'GM' || user.role === 'OM' || user.role === 'PROGRAMMER') {
         const alertToastId = `alert-${data.alertId || data.materialId || data.siteId || data.message}`;
+        
+        // ⬇️ Skip if user dismissed this toast before
         if (dismissedAlertToastRef.current.has(alertToastId)) return;
+        
+        // ⬇️ Show toast dengan action (click → /alerts)
         toast.custom((t) => (
           <div
             className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-md w-full bg-white shadow-2xl rounded-[2rem] pointer-events-auto flex ring-1 ring-black ring-opacity-5 border-l-8 border-red-500 cursor-pointer`}
@@ -140,6 +258,7 @@ const DashboardLayout = () => {
       }
     });
 
+    // Event: Alert resolved
     socket.on('alert_resolved', (data) => {
       window.dispatchEvent(new Event('alerts_updated'));
       if (user.role === 'NOC' || user.role === 'GM' || user.role === 'OM' || user.role === 'PROGRAMMER') {

@@ -1,25 +1,81 @@
+/**
+ * ============================================================================
+ * INVENTORY CONTROLLER - Stock dan Material Management
+ * ============================================================================
+ * Fungsi: Mengelola data stok, material, dan threshold alert untuk semua site
+ * 
+ * Core Functions:
+ * 1. updateThresholds() - Ubah warning/critical threshold untuk alert sensitivity
+ * 2. getInventory() - Query stok dengan filter site
+ * 3. getLogs() - Get audit trail (100 log terakhir)
+ * 4. updateStock() - Adjust stok pake StockService (transaction)
+ * 5. upsertMaterial() - Create/update material + inventory untuk site (transaction)
+ * 6. deleteMaterial() - Hapus material + cascade delete alerts/movements
+ * 7. deleteInventory() - Hapus stok spesifik di site
+ * 8. getAlerts() - Get semua alerts dengan threshold info
+ * 
+ * Pattern: Beberapa function memakai StockService (updateStock)
+ *          Beberapa direct Inventory update (updateThresholds)
+ *          Masing-masing reason: ubah threshold tidak perlu transaction
+ *          tapi adjust stok harus transaction untuk atomic
+ * 
+ * Real-time: Emit socket 'inventory_updated' untuk UI refresh
+ * Audit: Setiap action di-log untuk compliance
+ * Threshold: Trigger runThresholdCheck() untuk re-evaluate alerts
+ * ============================================================================
+ */
 const { Inventory, Material, Site, AuditLog, Alert, StockMovement, User, MaterialRequest, MaterialRequestItem, UsedMaterialReport, sequelize, AlertTimeline } = require('../models');
 const { Op } = require('sequelize');
 const { getIO } = require('../utils/socket');
 const StockService = require('../services/stockService');
 const { runThresholdCheck } = require('../utils/cron');
 
+
+/**
+ * UPDATE THRESHOLDS - Ubah warning/critical threshold untuk alert sensitivity
+ * PATCH /api/inventory/update-thresholds
+ * Body: { siteId?, minThreshold?, warningThreshold?, criticalThreshold? }
+ * 
+ * Fungsi: Kalibrasi kapan warning/critical alert dipicu
+ * 
+ * Contoh:
+ * - minThreshold=20: Untuk display minimum stok (deprecated, gunakan warningThreshold)
+ * - warningThreshold=20: Trigger WARNING alert jika stok <= 20
+ * - criticalThreshold=10: Trigger CRITICAL alert jika stok <= 10
+ * 
+ * Logika Threshold:
+ * stok=5  + critical=10 + warning=20  → CRITICAL (urgent)
+ * stok=15 + critical=10 + warning=20  → WARNING (monitor)
+ * stok=25 + critical=10 + warning=20  → NORMAL (ok)
+ * 
+ * Strategi:
+ * - Slow-moving items: threshold tinggi (stock sering naik-turun, false alert)
+ * - Fast-moving items: threshold rendah (stok cepat habis, butuh alert cepat)
+ * - Site-specific: Papua/Maluku threshold beda dari Pusat (jarak supply chain)
+ * 
+ * No Transaction: Hanya update threshold, tidak ada inventory change
+ * Kenapa? Thresholds hanya trigger cron check, tidak corrupt data
+ */
 exports.updateThresholds = async (req, res) => {
   try {
     const { siteId, minThreshold, warningThreshold, criticalThreshold } = req.body;
     
+    // ⬇️ Build WHERE clause: ALL sites atau specific site
     const where = {};
     if (siteId && siteId !== 'ALL') {
       where.siteId = siteId;
     }
     
+    // ⬇️ Build UPDATE data: only fields yang di-send
     const updateData = {};
     if (minThreshold !== undefined) updateData.minThreshold = minThreshold;
     if (warningThreshold !== undefined) updateData.warningThreshold = warningThreshold;
     if (criticalThreshold !== undefined) updateData.criticalThreshold = criticalThreshold;
     
+    // ⬇️ Update semua inventory yang match WHERE
     await Inventory.update(updateData, { where });
     
+    // ⬇️ Audit log
     await AuditLog.create({
       userId: req.user.id,
       action: 'UPDATE_THRESHOLD',
@@ -33,11 +89,24 @@ exports.updateThresholds = async (req, res) => {
   }
 };
 
+
+/**
+ * GET INVENTORY - Query stok dengan filter site
+ * GET /api/inventory?siteId=... atau ?site=...
+ * 
+ * Support 2 type filter: by siteId (numeric) atau site name (string)
+ * Include: Material data + Site data
+ * 
+ * Why separate query?
+ * - Frontend bisa filter by site dropdown (name) atau API (ID)
+ * - RBAC: OM hanya lihat stok site mereka
+ */
 exports.getInventory = async (req, res) => {
   try {
     const { site, siteId } = req.query;
     const where = {};
     
+    // ⬇️ Filter: siteId atau site name
     if (siteId && siteId !== 'All') {
       where.siteId = siteId;
     } else if (site && site !== 'All') {
@@ -59,6 +128,13 @@ exports.getInventory = async (req, res) => {
   }
 };
 
+/**
+ * GET LOGS - Get audit trail (last 100 entries)
+ * GET /api/inventory/logs
+ * 
+ * Used for: Compliance, user activity tracking, debugging
+ * Format: Map to client expected structure (action, details, user, module)
+ */
 exports.getLogs = async (req, res) => {
   try {
     const logs = await AuditLog.findAll({ 
@@ -67,7 +143,7 @@ exports.getLogs = async (req, res) => {
       limit: 100 
     });
     
-    // Map to the structure client expects
+    // ⬇️ Map to expected format
     const formattedLogs = logs.map(log => ({
       id: log.id,
       timestamp: log.timestamp,
@@ -84,12 +160,22 @@ exports.getLogs = async (req, res) => {
   }
 };
 
+/**
+ * UPDATE STOCK - Adjust stok pake StockService (transaction pattern)
+ * PATCH /api/inventory/stock
+ * Body: { id, adjustment }  (Inventory ID)
+ * 
+ * Delegates to: StockService.updateStock() yang handle transaction + audit
+ * Adjustment > 0: Add stock (IN)
+ * Adjustment < 0: Reduce stock (OUT)
+ */
 exports.updateStock = async (req, res) => {
   try {
     const { id, adjustment } = req.body; // Inventory ID
     const inventory = await Inventory.findByPk(id);
     if (!inventory) return res.status(404).json({ success: false, message: 'Item not found' });
 
+    // ⬇️ Use StockService untuk transaction + audit
     const updated = await StockService.updateStock(inventory.siteId, inventory.materialId, adjustment, req.user.id);
     res.json({ success: true, data: updated });
   } catch (error) {
@@ -97,37 +183,67 @@ exports.updateStock = async (req, res) => {
   }
 };
 
+
+/**
+ * UPSERT MATERIAL - Create/Update material dan inventory untuk site
+ * POST /api/inventory/materials
+ * Upload: image (optional)
+ * Body: { id?, sku, name, category, itemCode, specs?, stock, siteId, minThreshold?, warningThreshold?, criticalThreshold? }
+ * 
+ * UPSERT = Update if exists, create if not (database pattern)
+ * 
+ * Alur:
+ * 1. Cari material by SKU atau by ID
+ * 2. Jika ada, update material data
+ * 3. Jika tidak, create material baru
+ * 4. Create/update Inventory entry di site tertentu
+ * 5. Atomic: jika ada error, rollback semua (transaction)
+ * 
+ * Kenapa Transaction?
+ * - Material + Inventory adalah pair: satu material bisa di multiple sites
+ * - Jika Material create berhasil tapi Inventory gagal → orphan data
+ * - Transaction memastikan: kedua berhasil atau kedua gagal
+ * 
+ * Upload Image: Save ke /uploads/materials/ folder
+ * 
+ * Emit Socket: inventory_updated event untuk refresh dashboard
+ * Trigger Cron: runThresholdCheck untuk evaluate new thresholds
+ */
 exports.upsertMaterial = async (req, res) => {
-  const t = await sequelize.transaction();
+  const t = await sequelize.transaction(); // ⬇️ START TRANSACTION
   try {
     const { id, sku, itemCode, name, category, specs, stock, siteId, minThreshold, warningThreshold, criticalThreshold } = req.body;
     
-    // Handle file upload if present
+    // ⬇️ Handle file upload: jika ada file baru, gunakan, jika tidak gunakan existing image
     let imagePath = req.body.image; // Use existing image if no new file uploaded
     if (req.file) {
       imagePath = `/uploads/materials/${req.file.filename}`;
     }
     
-    // 1. Find or create the Material
+    // ⬇️ 1) FIND OR CREATE Material
     let material;
     const materialData = { sku, itemCode, name, category, specs, image: imagePath };
     
-    // Check if material with SKU already exists
+    // ⬇️ Strategy: Try update by ID first, then by SKU, then create new
     if (id) {
+      // ⬇️ Update existing by ID
       material = await Material.findByPk(id, { transaction: t });
       if (material) await material.update(materialData, { transaction: t });
     } else {
+      // ⬇️ Find by SKU (same material might be in multiple sites)
       material = await Material.findOne({ where: { sku }, transaction: t });
       if (material) {
+        // ⬇️ Update existing by SKU
         await material.update(materialData, { transaction: t });
       } else {
+        // ⬇️ Create new material
         material = await Material.create(materialData, { transaction: t });
       }
     }
 
     if (!material) throw new Error('Failed to upsert material');
 
-    // 2. Upsert the Inventory entry for the specific site
+    // ⬇️ 2) FIND OR CREATE Inventory di site yang diminta
     if (siteId) {
       const [inventory, created] = await Inventory.findOrCreate({
         where: { materialId: material.id, siteId },
@@ -141,6 +257,7 @@ exports.upsertMaterial = async (req, res) => {
       });
 
       if (!created) {
+        // ⬇️ Update existing inventory
         const updateData = { 
           stock: stock !== undefined ? stock : inventory.stock
         };
@@ -152,6 +269,7 @@ exports.upsertMaterial = async (req, res) => {
       }
     }
 
+    // ⬇️ 3) Audit log
     await AuditLog.create({
       userId: req.user.id,
       action: id ? 'UPDATE_MATERIAL' : 'CREATE_MATERIAL',
@@ -159,36 +277,63 @@ exports.upsertMaterial = async (req, res) => {
       details: `${id ? 'Mengubah' : 'Menambah'} material: ${name} (${sku}) ${siteId ? 'di site ID ' + siteId : ''}`
     }, { transaction: t });
 
+    // ⬇️ 4) COMMIT transaction
     await t.commit();
+    
+    // ⬇️ Emit socket event untuk UI update
     const io = getIO();
     io.emit('inventory_updated', {
       materialId: material.id,
       siteId: siteId || null,
       type: id ? 'UPDATE_MATERIAL' : 'CREATE_MATERIAL'
     });
+    
+    // ⬇️ Trigger cron check untuk new thresholds
     runThresholdCheck().catch(() => {});
+    
     res.json({ success: true, data: material });
   } catch (error) {
+    // ⬇️ ERROR: Rollback semua
     await t.rollback();
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
+
+/**
+ * DELETE MATERIAL - Hapus material + cascade delete related records
+ * DELETE /api/inventory/materials/:id
+ * 
+ * PENTING: Cascade delete karena foreign keys
+ * Sebelum delete material, harus delete:
+ * - Inventory (stok di semua site)
+ * - Alert (alert yang terkait)
+ * - StockMovement (history pergerakan stok)
+ * - MaterialRequestItem (permintaan yang sedang pending)
+ * - UsedMaterialReport (laporan penggunaan)
+ * 
+ * Why manual cascade?
+ * - Dengan ON DELETE CASCADE di FK, tapi lebih aman manual
+ * - Ensures all related data cleaned up
+ * - Can log what was deleted (audit trail)
+ */
 exports.deleteMaterial = async (req, res) => {
   try {
     const { id } = req.params;
     const material = await Material.findByPk(id);
     if (!material) return res.status(404).json({ success: false, message: 'Material not found' });
 
-    // Manually delete associated records to avoid foreign key constraints
+    // ⬇️ Manually delete associated records (cascade)
     await Inventory.destroy({ where: { materialId: id } });
     await Alert.destroy({ where: { materialId: id } });
     await StockMovement.destroy({ where: { materialId: id } });
     await MaterialRequestItem.destroy({ where: { materialId: id } });
     await UsedMaterialReport.destroy({ where: { materialId: id } });
     
+    // ⬇️ Delete material itself
     await material.destroy();
 
+    // ⬇️ Audit log
     await AuditLog.create({
       userId: req.user.id,
       action: 'DELETE_MATERIAL',
@@ -202,6 +347,16 @@ exports.deleteMaterial = async (req, res) => {
   }
 };
 
+/**
+ * DELETE INVENTORY - Hapus stok spesifik di site
+ * DELETE /api/inventory/:id
+ * 
+ * Hapus inventory entry (not material itself)
+ * = Tidak ada lagi stok material X di site Y
+ * Material masih ada, hanya di site lain
+ * 
+ * Usecase: Pindahkan material antara site (delete dari site lama, create di site baru)
+ */
 exports.deleteInventory = async (req, res) => {
   try {
     const { id } = req.params;
@@ -214,8 +369,10 @@ exports.deleteInventory = async (req, res) => {
     const materialName = inventory.Material?.name || 'Unknown';
     const siteName = inventory.Site?.name || 'Unknown';
 
+    // ⬇️ Delete inventory entry
     await inventory.destroy();
 
+    // ⬇️ Audit log
     await AuditLog.create({
       userId: req.user.id,
       action: 'DELETE_STOCK',
