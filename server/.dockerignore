@@ -1,0 +1,10 @@
+node_modules
+npm-debug.log
+.env
+database.sqlite
+database_backup.sqlite
+backups/
+uploads/
+.git
+Dockerfile
+docker-compose.yml
